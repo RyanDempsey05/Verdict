@@ -278,8 +278,6 @@ def search_page(
     user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user is None:
-        return RedirectResponse(url="/login", status_code=303)
 
     results = []
     if q.strip():
@@ -293,12 +291,14 @@ def search_page(
         except Exception:
             pass
 
-    rows = db.execute(
-        select(Item.source, Item.source_id, Rating.score)
-        .join(Rating, Rating.item_id == Item.id)
-        .where(Rating.user_id == user.id)
-    ).all()
-    mine = {(r.source, r.source_id): r.score for r in rows}
+    mine = {}
+    if user is not None:
+        rows = db.execute(
+            select(Item.source, Item.source_id, Rating.score)
+            .join(Rating, Rating.item_id == Item.id)
+            .where(Rating.user_id == user.id)
+        ).all()
+        mine = {(r.source, r.source_id): r.score for r in rows}
 
     return templates.TemplateResponse(
         request, "search.html",
@@ -433,14 +433,14 @@ def ui_delete_rating(
 @router.post("/ui/logout")
 def ui_logout():
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
     return response
 
 
 @router.get("/ui/logout")
 def ui_logout_get():
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
     return response
 
 
@@ -533,17 +533,18 @@ def suggest(
 @router.get("/", response_class=HTMLResponse)
 def discover_page(
     request: Request,
+    guest: int = 0,
     user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user is None:
-        return RedirectResponse(url="/login", status_code=303)
+    if user is None and not guest:
+        return templates.TemplateResponse(request, "landing.html", {"user": None})
 
     data = discover.get()
 
-    ids = friend_ids(db, user.id) + [user.id]
     ratings_by_key = {}
-    if ids:
+    if user is not None:
+        ids = friend_ids(db, user.id) + [user.id]
         rows = db.execute(
             select(Item.source, Item.source_id, Rating.score, User.username)
             .join(Rating, Rating.item_id == Item.id)
@@ -572,8 +573,6 @@ def browse_page(
     user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user is None:
-        return RedirectResponse(url="/login", status_code=303)
 
     if kind not in BROWSE_LABELS:
         raise HTTPException(status_code=404, detail="Not found")
@@ -589,8 +588,8 @@ def browse_page(
     except Exception:
         pass
 
-    ids = friend_ids(db, user.id) + [user.id]
     ratings_by_key = {}
+    ids = (friend_ids(db, user.id) + [user.id]) if user is not None else []
     if ids and rows:
         seen = db.execute(
             select(Item.source, Item.source_id, Rating.score, User.username)
@@ -762,7 +761,7 @@ def ui_delete_account(
     db.commit()
 
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
     return response
 
 

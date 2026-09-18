@@ -10,7 +10,7 @@
     <div class="card-body">
       <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
       {% set seen = ratings.get((row.source, row.source_id)) %}
-      {% set mine = (seen or []) | selectattr("username", "equalto", user.username) | first %}
+      {% set mine = (seen or []) | selectattr("username", "equalto", user.username) | first if user else none %}
       {% if mine %}
         <div class="meta"><span class="score">{{ mine.score }}</span><span class="year">/10 &mdash; your verdict</span></div>
       {% endif %}
@@ -19,6 +19,9 @@
           {% for s in seen %}{% if s.username != user.username %}<span class="tag" style="margin-right:.3rem">{{ s.username }} {{ s.score }}/10</span>{% endif %}{% endfor %}
         </div>
       {% endif %}
+      {% if not user %}
+        <div style="margin-top:.7rem"><a class="tab" href="/register">Sign up to rate</a></div>
+      {% else %}
       <form method="post" action="/rate" class="row" style="margin-top:.7rem">
         <input type="hidden" name="media_type" value="{{ row.type }}">
         <input type="hidden" name="source_id" value="{{ row.source_id }}">
@@ -28,6 +31,7 @@
         <input name="review" placeholder="say something (optional)" maxlength="2000">
         <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
       </form>
+      {% endif %}
     </div>
   </div>
 {% endfor %}

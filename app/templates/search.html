@@ -12,6 +12,7 @@
 
 <script>
 (function () {
+  var GUEST = {{ 'false' if user else 'true' }};
   var input = document.getElementById('q');
   var box = document.getElementById('results');
   var spin = document.getElementById('spin');
@@ -45,7 +46,8 @@
             ' <span class="year">' + (row.year ? esc(row.year) : '') + '</span></div>' +
           '<div class="meta"><span class="tag">' + esc(row.type) + '</span></div>' +
           (yours ? '<div class="meta"><span class="score">' + yours + '</span><span class="year">/10 &mdash; your verdict</span></div>' : '') +
-          '<form method="post" action="/rate" class="row" style="margin-top:.7rem">' +
+          (GUEST ? '<div style="margin-top:.7rem"><a class="tab" href="/register">Sign up to rate</a></div>' : '') +
+      (GUEST ? '' : '<form method="post" action="/rate" class="row" style="margin-top:.7rem">') +
             '<input type="hidden" name="media_type" value="' + esc(row.type) + '">' +
             '<input type="hidden" name="source_id" value="' + esc(row.source_id) + '">' +
             '<select name="score" style="width:auto;flex:0 0 auto">' + opts + '</select>' +

@@ -95,5 +95,5 @@ def login(
 @router.post("/logout")
 def logout():
     response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
     return response

@@ -27,6 +27,7 @@ app.include_router(views.router)
 import os
 os.makedirs("/media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="/media"), name="media")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 import os
 os.makedirs("/media", exist_ok=True)

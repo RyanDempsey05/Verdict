@@ -31,7 +31,13 @@ def get() -> dict:
         if _cache["data"] is not None and now - _cache["at"] < TTL:
             return _cache["data"]
         data = _build()
-        if any(data.values()):
+        if all(data.values()):
             _cache["data"] = data
             _cache["at"] = now
+        elif _cache["data"] is not None:
+            merged = dict(_cache["data"])
+            for k, v in data.items():
+                if v:
+                    merged[k] = v
+            return merged
         return data
