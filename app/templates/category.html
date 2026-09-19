@@ -1,9 +1,17 @@
 {% extends "base.html" %}
-{% macro section(title, rows, kind) %}
-<h2 style="font-size:1.35rem;margin:2.5rem 0 1rem">{{ title }}</h2>
+{% block title %}{{ label }} {{ group|lower }} — VERDICT{% endblock %}
+{% block content %}
+
+<div class="row" style="align-items:baseline;gap:.8rem;margin-bottom:.35rem">
+  <h1 style="margin:0">{{ label }}</h1>
+  <span class="meta">{{ group }}</span>
+</div>
+<div style="margin-bottom:1.5rem"><a class="tab" href="/">&larr; Discover</a></div>
+
 {% if not rows %}
-  <div class="empty">Couldn't load right now.</div>
+  <div class="empty">Nothing to show right now.</div>
 {% endif %}
+
 {% for row in rows %}
   <div class="card" id="i-{{ row.type }}-{{ row.source_id }}">
     <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}" style="flex-shrink:0">{% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}</a>
@@ -43,57 +51,14 @@
     </div>
   </div>
 {% endfor %}
+
 {% if rows %}
-<div style="margin-top:-.2rem">
-  <a class="tab" href="/browse/{{ kind }}">Show more &rarr;</a>
+<div class="row" style="margin-top:2rem;justify-content:center">
+  {% if page > 1 %}
+    <a class="tab" href="/c/{{ slug }}?page={{ page - 1 }}">&larr; Previous</a>
+  {% endif %}
+  <span class="who">Page {{ page }}</span>
+  <a class="tab" href="/c/{{ slug }}?page={{ page + 1 }}">Next &rarr;</a>
 </div>
 {% endif %}
-{% endmacro %}
-
-{% macro tiles(group) %}
-<div class="cattiles">
-  {% for slug, spec in cats.items() %}
-    {% if spec.group == group %}
-      <a class="cattile" href="/c/{{ slug }}">
-        <div class="catgrid">
-          {% set shots = previews.get(slug) or [] %}
-          {% for i in range(4) %}
-            <div {% if shots|length > i %}style="background-image:url('{{ shots[i] }}')"{% endif %}></div>
-          {% endfor %}
-        </div>
-        <span>{{ spec.label }}</span>
-      </a>
-    {% endif %}
-  {% endfor %}
-</div>
-{% endmacro %}
-
-{% block content %}
-<h1>Discover</h1>
-
-{% if onboard is not none %}
-<div class="onboard">
-  <h3>{% if onboard == 0 %}Welcome to Verdict{% else %}Keep going{% endif %}</h3>
-  <p>
-    {% if onboard == 0 %}
-      Rate a few things you've seen or played and the rest of the app fills in —
-      your profile, your top five, and what your friends thought.
-    {% else %}
-      Rate {{ 5 - onboard }} more and your profile starts to take shape.
-    {% endif %}
-  </p>
-  <div class="pips">
-    {% for n in range(5) %}<span class="pip {% if n < onboard %}on{% endif %}"></span>{% endfor %}
-    <span class="left">{{ onboard }} of 5</span>
-  </div>
-</div>
-{% endif %}
-{{ section("Trending Films", data.movies, "movie") }}
-{{ tiles("Films") }}
-
-{{ section("Trending Shows", data.shows, "tv") }}
-{{ tiles("Shows") }}
-
-{{ section("Top Games", data.games, "game") }}
-{{ tiles("Games") }}
 {% endblock %}

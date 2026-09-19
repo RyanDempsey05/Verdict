@@ -11,24 +11,12 @@
   </div>
 {% endif %}
 
-<div class="tabs">
-  <a href="/feed" class="tab {% if scope == 'friends' %}on{% endif %}">Friends</a>
-  <a href="/feed?scope=public" class="tab {% if scope == 'public' %}on{% endif %}">Everyone</a>
-</div>
-
 {% if not feed %}
-  {% if scope == 'public' %}
-    <div class="empty">Nothing on Verdict yet. Be the first to rate something.</div>
-  {% else %}
-    <div class="empty" style="text-align:left;padding:1.5rem">
-      <div style="color:var(--bone);margin-bottom:.5rem">Your feed is quiet</div>
-      <div style="margin-bottom:1rem">
-        This fills up with what your friends rate. In the meantime, see what
-        <a href="/feed?scope=public">everyone else</a> is watching.
-      </div>
-      <a class="tab" href="/invite">Invite a friend</a>
-    </div>
-  {% endif %}
+  <div class="empty" style="text-align:left;padding:1.5rem">
+    <div style="color:var(--bone);margin-bottom:.5rem">Your feed is quiet</div>
+    <div style="margin-bottom:1rem">This fills up with what your friends rate. Send someone your invite link and it starts moving.</div>
+    <a class="tab" href="/invite">Invite a friend</a>
+  </div>
 {% endif %}
 
 {% for row in feed %}

@@ -195,3 +195,45 @@ def details(media_type: str, source_id: str) -> dict | None:
         "runtime": runtime,
         "extra": f"{row.get('number_of_seasons')} seasons" if media_type == "tv" and row.get("number_of_seasons") else None,
     }
+
+
+def discover(media_type: str, params: dict, page: int = 1) -> list[dict]:
+    """Fetch a filtered slice of movies or TV from TMDB's discover endpoint."""
+    if media_type not in ("movie", "tv"):
+        return []
+
+    query = {
+        "language": "en-US",
+        "include_adult": "false",
+        "page": max(1, min(500, page)),
+    }
+    query.update(params)
+
+    with httpx.Client(timeout=8.0) as client:
+        resp = client.get(
+            f"{BASE_URL}/discover/{media_type}", headers=_headers, params=query
+        )
+        resp.raise_for_status()
+        rows = resp.json().get("results", [])
+
+    out = []
+    for row in rows:
+        title = row.get("title") if media_type == "movie" else row.get("name")
+        date = (
+            row.get("release_date")
+            if media_type == "movie"
+            else row.get("first_air_date")
+        )
+        if not title:
+            continue
+        out.append(
+            {
+                "source": "tmdb",
+                "source_id": str(row["id"]),
+                "type": media_type,
+                "title": title,
+                "year": _year(date),
+                "image_url": _poster_url(row.get("poster_path")),
+            }
+        )
+    return out

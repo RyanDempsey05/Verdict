@@ -260,6 +260,60 @@
     }
     .pip.on { background:var(--moss-hi); }
     .pips .left { margin-left:.6rem; font-size:.85rem; color:var(--muted); }
+    .cattiles {
+      display:grid; gap:1rem; margin-bottom:2.5rem;
+      grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+    }
+    a.cattile {
+      display:block; text-decoration:none; border:1px solid var(--line);
+      border-radius:3px; overflow:hidden; background:var(--panel);
+      transition:border-color .15s;
+    }
+    a.cattile:hover { border-color:var(--moss-hi); text-decoration:none; }
+    .catgrid {
+      display:grid; grid-template-columns:1fr 1fr; gap:1px;
+      background:var(--line); aspect-ratio:3/2;
+    }
+    .catgrid div {
+      background:var(--panel-2) center/cover no-repeat;
+    }
+    .cattile span {
+      display:block; padding:.6rem .75rem; color:var(--text);
+      font-size:.92rem; font-weight:500; border-top:1px solid var(--line);
+    }
+    a.cattile:hover span { color:var(--bone); }
+    @media (max-width:720px) {
+      .cattiles { grid-template-columns:1fr 1fr; gap:.75rem; }
+      .cattile span { font-size:.85rem; padding:.5rem .6rem; }
+    }
+    .pichead {
+      position:relative; margin:-1rem -1rem 1.5rem; height:180px;
+      overflow:hidden; border-bottom:1px solid var(--line); background:var(--panel-2);
+    }
+    .pichead img {
+      width:100%; height:100%; object-fit:cover; filter:saturate(.6) brightness(.7);
+      display:block;
+    }
+    .picav {
+      position:relative; width:84px; height:84px; flex-shrink:0;
+      border:1px solid var(--line); border-radius:2px; overflow:hidden;
+      background:var(--panel-2);
+    }
+    .picav img { width:100%; height:100%; object-fit:cover; display:block; }
+    .pichint {
+      position:absolute; inset:0; display:flex; align-items:center;
+      justify-content:center; text-align:center; padding:.4rem;
+      font-size:.78rem; color:var(--muted); background:rgba(10,10,11,.55);
+      opacity:0; transition:opacity .15s; pointer-events:none;
+    }
+    .pichead.editable, .picav.editable { cursor:pointer; }
+    .pichead.editable:hover .pichint, .picav.editable:hover .pichint { opacity:1; }
+    .pichead.editable:not(:has(img)) .pichint,
+    .picav.editable:not(:has(img)) .pichint { opacity:1; }
+    @media (hover:none) {
+      .pichead.editable .pichint, .picav.editable .pichint { opacity:1; }
+    }
+    @media (max-width:720px) { .pichead { height:130px; margin:-1rem -.85rem 1.25rem; } }
   </style>
 </head>
 <body>
@@ -272,7 +326,7 @@
     <a href="/search">Search</a>
     <a href="/friends">Friends</a>
     <a href="/u/{{ user.username }}">Mine</a>
-    <a href="/settings" class="who" style="text-decoration:none">{{ user.username }}</a>
+    <a href="/settings">Settings</a>
     <form class="inline" method="post" action="/ui/logout">
       <button class="ghost" type="submit">Log out</button>
     </form>

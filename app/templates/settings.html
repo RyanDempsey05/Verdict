@@ -3,18 +3,13 @@
 <h1>Settings</h1>
 
 <h2 style="font-size:1.2rem;margin-top:2rem">Profile</h2>
+<p class="meta" style="margin:-.5rem 0 1rem">
+  Your photo and backdrop are set on <a href="/u/{{ user.username }}">your profile</a>.
+</p>
 <form method="post" action="/ui/settings/profile" enctype="multipart/form-data" class="stack" style="max-width:460px">
   <div>
     <div class="meta">Bio</div>
     <input name="bio" maxlength="280" value="{{ user.bio or '' }}" placeholder="a line about yourself">
-  </div>
-  <div>
-    <div class="meta">Avatar</div>
-    <input type="file" name="avatar" accept="image/*">
-  </div>
-  <div>
-    <div class="meta">Backdrop</div>
-    <input type="file" name="backdrop" accept="image/*">
   </div>
   <button type="submit">Save</button>
 </form>

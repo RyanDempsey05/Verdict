@@ -203,3 +203,51 @@ def details(source_id: str) -> dict | None:
     base["runtime"] = None
     base["extra"] = dev
     return base
+
+
+def discover(where: str, page: int = 1, limit: int = 24) -> list[dict]:
+    """Fetch games matching an APIcalypse where-clause, most popular first."""
+    offset = max(0, (max(1, page) - 1) * limit)
+    body = (
+        "fields name,first_release_date,cover.url; "
+        f"where {where} & cover != null & version_parent = null "
+        "& total_rating_count > 20; "
+        "sort total_rating_count desc; "
+        f"limit {limit}; offset {offset};"
+    )
+
+    with httpx.Client(timeout=8.0) as client:
+        resp = client.post(f"{BASE_URL}/games", headers=_headers(), content=body)
+        resp.raise_for_status()
+        rows = resp.json()
+
+    out = []
+    for row in rows:
+        item = _normalize(row)
+        if item is not None:
+            out.append(item)
+    return out
+
+
+def discover(where: str, page: int = 1, limit: int = 24) -> list[dict]:
+    """Fetch games matching an APIcalypse where-clause, most popular first."""
+    offset = max(0, (max(1, page) - 1) * limit)
+    body = (
+        "fields name,first_release_date,cover.url; "
+        f"where {where} & cover != null & version_parent = null "
+        "& total_rating_count > 20; "
+        "sort total_rating_count desc; "
+        f"limit {limit}; offset {offset};"
+    )
+
+    with httpx.Client(timeout=8.0) as client:
+        resp = client.post(f"{BASE_URL}/games", headers=_headers(), content=body)
+        resp.raise_for_status()
+        rows = resp.json()
+
+    out = []
+    for row in rows:
+        item = _normalize(row)
+        if item is not None:
+            out.append(item)
+    return out

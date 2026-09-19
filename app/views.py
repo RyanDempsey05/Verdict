@@ -11,7 +11,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import card, discover, igdb, mail, media, tmdb
+from app import card, categories, discover, igdb, mail, media, tmdb
 from app.auth import _set_session, get_current_user, require_user
 from app.db import get_db
 from app.friends import friend_ids
@@ -598,6 +598,9 @@ def discover_page(
         {
             "user": user, "data": data, "ratings": ratings_by_key,
             "onboard": _onboard_count(db, user),
+            "cats": categories.CATEGORIES,
+            "groups": categories.GROUPS,
+            "previews": categories.previews(),
         },
     )
 
@@ -1275,3 +1278,42 @@ def ui_reset(
     response = RedirectResponse(url="/", status_code=303)
     _set_session(response, target.id)
     return response
+
+
+@router.get("/c/{slug}", response_class=HTMLResponse)
+def category_page(
+    request: Request,
+    slug: str,
+    page: int = 1,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    spec = categories.CATEGORIES.get(slug)
+    if spec is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    page = max(1, min(100, page))
+    rows = categories.fetch(slug, page=page)
+
+    ratings_by_key = {}
+    ids = (friend_ids(db, user.id) + [user.id]) if user is not None else []
+    if ids and rows:
+        seen = db.execute(
+            select(Item.source, Item.source_id, Rating.score, User.username)
+            .join(Rating, Rating.item_id == Item.id)
+            .join(User, User.id == Rating.user_id)
+            .where(Rating.user_id.in_(ids))
+        ).all()
+        for r in seen:
+            ratings_by_key.setdefault((r.source, r.source_id), []).append(
+                {"username": r.username, "score": r.score}
+            )
+
+    return templates.TemplateResponse(
+        request, "category.html",
+        {
+            "user": user, "rows": rows, "slug": slug, "page": page,
+            "label": spec["label"], "group": spec["group"],
+            "ratings": ratings_by_key,
+        },
+    )
