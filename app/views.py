@@ -136,6 +136,7 @@ def ui_login(
 @router.get("/feed", response_class=HTMLResponse)
 def feed_page(
     request: Request,
+    scope: str = "friends",
     user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -143,19 +144,26 @@ def feed_page(
         return RedirectResponse(url="/login", status_code=303)
 
     ids = friend_ids(db, user.id)
-    rows = []
-    if ids:
+
+    base = (
+        select(
+            Rating.score, Rating.review, User.username,
+            Item.title, Item.year, Item.image_url, Item.type,
+            Item.source, Item.source_id,
+        )
+        .join(User, User.id == Rating.user_id)
+        .join(Item, Item.id == Rating.item_id)
+        .order_by(Rating.updated_at.desc())
+        .limit(50)
+    )
+
+    if scope == "public":
         rows = db.execute(
-            select(
-                Rating.score, Rating.review, User.username,
-                Item.title, Item.year, Item.image_url, Item.type,
-            )
-            .join(User, User.id == Rating.user_id)
-            .join(Item, Item.id == Rating.item_id)
-            .where(Rating.user_id.in_(ids))
-            .order_by(Rating.updated_at.desc())
-            .limit(50)
+            base.where(User.profile_public.is_(True), User.id != user.id)
         ).all()
+    else:
+        scope = "friends"
+        rows = db.execute(base.where(Rating.user_id.in_(ids))).all() if ids else []
 
     pending = db.scalar(
         select(Friendship).where(
@@ -165,7 +173,11 @@ def feed_page(
 
     return templates.TemplateResponse(
         request, "feed.html",
-        {"user": user, "feed": rows, "has_requests": pending is not None},
+        {
+            "user": user, "feed": rows, "scope": scope,
+            "has_friends": bool(ids),
+            "has_requests": pending is not None,
+        },
     )
 
 
@@ -583,7 +595,10 @@ def discover_page(
 
     return templates.TemplateResponse(
         request, "discover.html",
-        {"user": user, "data": data, "ratings": ratings_by_key},
+        {
+            "user": user, "data": data, "ratings": ratings_by_key,
+            "onboard": _onboard_count(db, user),
+        },
     )
 
 
@@ -1139,6 +1154,17 @@ def invite_page(
     return templates.TemplateResponse(
         request, "invite.html", {"user": user, "code": code}
     )
+
+
+ONBOARD_TARGET = 5
+
+
+def _onboard_count(db: Session, user: User | None) -> int | None:
+    """Ratings so far, or None once the user is past the onboarding stage."""
+    if user is None:
+        return None
+    n = db.scalar(select(func.count(Rating.id)).where(Rating.user_id == user.id)) or 0
+    return n if n < ONBOARD_TARGET else None
 
 
 RESET_TTL_MINUTES = 60

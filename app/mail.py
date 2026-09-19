@@ -1,6 +1,9 @@
+import logging
 import os
 
 import httpx
+
+log = logging.getLogger("verdict.mail")
 
 API_URL = "https://api.resend.com/emails"
 _key = os.environ.get("RESEND_API_KEY", "")
@@ -27,7 +30,8 @@ def send(to: str, subject: str, text: str, html: str | None = None) -> bool:
             )
             resp.raise_for_status()
         return True
-    except Exception:
+    except Exception as exc:
+        log.warning("mail send failed to %s: %s", to, exc)
         return False
 
 

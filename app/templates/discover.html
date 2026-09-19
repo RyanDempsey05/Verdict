@@ -52,6 +52,24 @@
 
 {% block content %}
 <h1>Discover</h1>
+
+{% if onboard is not none %}
+<div class="onboard">
+  <h3>{% if onboard == 0 %}Welcome to Verdict{% else %}Keep going{% endif %}</h3>
+  <p>
+    {% if onboard == 0 %}
+      Rate a few things you've seen or played and the rest of the app fills in —
+      your profile, your top five, and what your friends thought.
+    {% else %}
+      Rate {{ 5 - onboard }} more and your profile starts to take shape.
+    {% endif %}
+  </p>
+  <div class="pips">
+    {% for n in range(5) %}<span class="pip {% if n < onboard %}on{% endif %}"></span>{% endfor %}
+    <span class="left">{{ onboard }} of 5</span>
+  </div>
+</div>
+{% endif %}
 {{ section("Trending Films", data.movies, "movie") }}
 {{ section("Trending Shows", data.shows, "tv") }}
 {{ section("Top Games", data.games, "game") }}

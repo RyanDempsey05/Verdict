@@ -244,6 +244,22 @@
     }
     a.cardlink .title, a.cardlink .year { color:inherit; }
     a.cardlink:hover .title { color:var(--verd); }
+    .onboard {
+      border:1px solid var(--line); border-left:3px solid var(--moss-hi);
+      background:var(--panel); border-radius:3px; padding:1.1rem 1.25rem;
+      margin-bottom:1.75rem;
+    }
+    .onboard h3 {
+      font-family:Cinzel,serif; font-weight:500; font-size:1.1rem;
+      color:var(--bone); margin:0 0 .4rem; letter-spacing:.02em;
+    }
+    .onboard p { margin:0 0 .9rem; color:var(--muted); font-size:.95rem; }
+    .pips { display:flex; gap:.35rem; align-items:center; }
+    .pip {
+      width:26px; height:6px; border-radius:2px; background:var(--line);
+    }
+    .pip.on { background:var(--moss-hi); }
+    .pips .left { margin-left:.6rem; font-size:.85rem; color:var(--muted); }
   </style>
 </head>
 <body>

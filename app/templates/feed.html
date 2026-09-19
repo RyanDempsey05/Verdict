@@ -3,21 +3,40 @@
 <h1>The Feed</h1>
 
 {% if has_requests %}
-  <div class="err" style="background:rgba(201,162,39,.12);border-color:var(--gold);color:var(--gold)">
-    You have a pending friend request. <a href="/friends" style="color:var(--gold)">Review it</a>
+  <div class="onboard" style="border-left-color:var(--brass)">
+    <p style="margin:0">
+      You have a pending friend request.
+      <a href="/friends">Review it</a>
+    </p>
   </div>
 {% endif %}
 
+<div class="tabs">
+  <a href="/feed" class="tab {% if scope == 'friends' %}on{% endif %}">Friends</a>
+  <a href="/feed?scope=public" class="tab {% if scope == 'public' %}on{% endif %}">Everyone</a>
+</div>
+
 {% if not feed %}
-  <div class="empty">Nothing yet. <a href="/friends" style="color:var(--blood-hi)">Add some friends</a> to see what they're watching.</div>
+  {% if scope == 'public' %}
+    <div class="empty">Nothing on Verdict yet. Be the first to rate something.</div>
+  {% else %}
+    <div class="empty" style="text-align:left;padding:1.5rem">
+      <div style="color:var(--bone);margin-bottom:.5rem">Your feed is quiet</div>
+      <div style="margin-bottom:1rem">
+        This fills up with what your friends rate. In the meantime, see what
+        <a href="/feed?scope=public">everyone else</a> is watching.
+      </div>
+      <a class="tab" href="/invite">Invite a friend</a>
+    </div>
+  {% endif %}
 {% endif %}
 
 {% for row in feed %}
   <div class="card">
-    {% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}
+    <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}" style="flex-shrink:0">{% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}</a>
     <div class="card-body">
-      <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
-      <div class="meta"><a href="/u/{{ row.username }}" style="color:var(--muted)">{{ row.username }}</a> &middot; <span class="score">{{ row.score }}</span><span class="year">/5</span></div>
+      <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}"><div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div></a>
+      <div class="meta"><a href="/u/{{ row.username }}">{{ row.username }}</a> &middot; <span class="score">{{ row.score }}</span><span class="year">/5</span></div>
       {% if row.review %}<div class="review">{{ row.review }}</div>{% endif %}
     </div>
   </div>
