@@ -1,36 +1,44 @@
 {% extends "base.html" %}
 {% macro section(title, rows, kind) %}
-<h2 style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:.06em;margin:2.5rem 0 1rem">{{ title }}</h2>
+<h2 style="font-size:1.35rem;margin:2.5rem 0 1rem">{{ title }}</h2>
 {% if not rows %}
   <div class="empty">Couldn't load right now.</div>
 {% endif %}
 {% for row in rows %}
   <div class="card" id="i-{{ row.type }}-{{ row.source_id }}">
-    {% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}
+    <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}" style="flex-shrink:0">{% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}</a>
     <div class="card-body">
-      <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
+      <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}"><div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div></a>
       {% set seen = ratings.get((row.source, row.source_id)) %}
       {% set mine = (seen or []) | selectattr("username", "equalto", user.username) | first if user else none %}
       {% if mine %}
-        <div class="meta"><span class="score">{{ mine.score }}</span><span class="year">/10 &mdash; your verdict</span></div>
+        <div class="meta"><span class="score">{{ mine.score }}</span><span class="year">/5 &mdash; your verdict</span></div>
       {% endif %}
       {% if seen %}
         <div class="meta">
-          {% for s in seen %}{% if s.username != user.username %}<span class="tag" style="margin-right:.3rem">{{ s.username }} {{ s.score }}/10</span>{% endif %}{% endfor %}
+          {% for s in seen %}{% if not user or s.username != user.username %}<span class="tag" style="margin-right:.3rem">{{ s.username }} {{ s.score }}</span>{% endif %}{% endfor %}
         </div>
       {% endif %}
       {% if not user %}
         <div style="margin-top:.7rem"><a class="tab" href="/register">Sign up to rate</a></div>
       {% else %}
-      <form method="post" action="/rate" class="row" style="margin-top:.7rem">
-        <input type="hidden" name="media_type" value="{{ row.type }}">
-        <input type="hidden" name="source_id" value="{{ row.source_id }}">
-        <select name="score" style="width:auto;flex:0 0 auto">
-          {% for n in range(10, 0, -1) %}<option value="{{ n }}" {% if mine and mine.score == n %}selected{% endif %}>{{ n }}</option>{% endfor %}
-        </select>
-        <input name="review" placeholder="say something (optional)" maxlength="2000">
-        <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
-      </form>
+        <form method="post" action="/rate" class="row" style="margin-top:.7rem">
+          <input type="hidden" name="media_type" value="{{ row.type }}">
+          <input type="hidden" name="source_id" value="{{ row.source_id }}">
+          <div class="rate" data-rate>
+            <svg class="rateface" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="17"/>
+              <ellipse class="fe" cx="14" cy="16" rx="2.1" ry="2.6"/>
+              <ellipse class="fe" cx="26" cy="16" rx="2.1" ry="2.6"/>
+              <path class="fm" d="M13 26 L27 26"/>
+            </svg>
+            <div class="ratetrack" data-track><div class="ratefill"></div></div>
+            <span class="ratenum">0</span>
+            <input type="hidden" name="score" value="{% if mine %}{{ mine.score }}{% else %}0{% endif %}">
+          </div>
+          <input name="review" placeholder="say something (optional)" maxlength="2000">
+          <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
+        </form>
       {% endif %}
     </div>
   </div>

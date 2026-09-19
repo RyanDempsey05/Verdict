@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} — VERDICT{% endblock %}
+{% block content %}
+
+<div class="itemhead">
+  {% if item.image_url %}
+    <img class="itemposter" src="{{ item.image_url }}" alt="">
+  {% endif %}
+  <div class="itembody">
+    <h1 style="margin-bottom:.5rem">{{ item.title }}</h1>
+    <div class="meta">
+      {% if item.year %}{{ item.year }} &middot; {% endif %}
+      <span class="tag">{{ item.type }}</span>
+      {% if item.runtime %} &middot; {{ item.runtime }} min{% endif %}
+      {% if item.extra %} &middot; {{ item.extra }}{% endif %}
+    </div>
+    {% if item.genres %}
+      <div class="meta" style="margin-top:.4rem">{{ item.genres|join(" · ") }}</div>
+    {% endif %}
+    {% if avg %}
+      <div style="margin-top:.8rem"><span class="score" style="font-size:1.5rem">{{ avg }}</span><span class="year">/5 average among you and your friends</span></div>
+    {% endif %}
+    {% if item.overview %}
+      <p style="margin-top:1rem;color:#9aa392">{{ item.overview }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if user %}
+<div class="card" style="margin-top:2rem;display:block">
+  <div class="meta" style="margin-bottom:.6rem">{% if mine %}Your verdict{% else %}Rate it{% endif %}</div>
+  <form method="post" action="/rate" class="row">
+    <input type="hidden" name="media_type" value="{{ item.type }}">
+    <input type="hidden" name="source_id" value="{{ item.source_id }}">
+    <div class="rate" data-rate>
+      <svg class="rateface" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="17"/>
+        <ellipse class="fe" cx="14" cy="16" rx="2.1" ry="2.6"/>
+        <ellipse class="fe" cx="26" cy="16" rx="2.1" ry="2.6"/>
+        <path class="fm" d="M13 26 L27 26"/>
+      </svg>
+      <div class="ratetrack" data-track><div class="ratefill"></div></div>
+      <span class="ratenum">0</span>
+      <input type="hidden" name="score" value="{% if mine %}{{ mine.score }}{% else %}0{% endif %}">
+    </div>
+    <input name="review" placeholder="say something (optional)" maxlength="2000" value="{{ mine.review or '' if mine else '' }}">
+    <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
+  </form>
+</div>
+{% else %}
+<div class="empty" style="margin-top:2rem">
+  <a href="/register" style="color:var(--verd)">Sign up</a> to rate this.
+</div>
+{% endif %}
+
+{% if friends_ratings %}
+<h2 style="font-size:1.2rem;margin:2.5rem 0 1rem">What your friends thought</h2>
+{% for r in friends_ratings %}
+  <div class="card" style="align-items:flex-start">
+    {% if r.avatar %}
+      <img src="/media/{{ r.avatar }}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:2px">
+    {% endif %}
+    <div class="card-body">
+      <div><a href="/u/{{ r.username }}" style="color:var(--bone);text-decoration:none">{{ r.username }}</a> &middot; <span class="score">{{ r.score }}</span><span class="year">/5</span></div>
+      {% if r.review %}<div class="review">{{ r.review }}</div>{% endif %}
+    </div>
+  </div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

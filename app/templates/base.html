@@ -6,7 +6,7 @@
   <title>{% block title %}VERDICT{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Inter:wght@400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #0a0c0a;
@@ -32,11 +32,11 @@
         radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0,0,0,.55) 100%);
       background-attachment: fixed;
       color: var(--text);
-      font-family: 'EB Garamond', Georgia, serif;
-      font-size: 1.05rem;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-size: .95rem;
       margin: 0;
       padding: 0 1rem 4rem;
-      line-height: 1.65;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
     .wrap { max-width: 720px; margin: 0 auto; }
@@ -53,22 +53,22 @@
     .brand span { color: var(--verd); }
     nav a {
       color: var(--muted); text-decoration: none;
-      font-family: Cinzel, serif; font-size: .75rem;
-      letter-spacing: .14em; text-transform: uppercase;
+      font-family: Inter, sans-serif; font-size: .82rem; font-weight: 500;
+      letter-spacing: .02em;
     }
     nav a:hover { color: var(--bone); }
     .who {
-      color: #5f685c; font-size: .78rem;
-      font-family: Cinzel, serif; letter-spacing: .08em;
+      color: #5f685c; font-size: .82rem;
+      font-family: Inter, sans-serif;
     }
     h1 {
       font-family: Cinzel, serif; font-weight: 400;
-      font-size: 2rem; letter-spacing: .14em; text-transform: uppercase;
+      font-size: 1.9rem; letter-spacing: .04em;
       margin: 0 0 1.75rem; color: var(--bone);
       padding-bottom: .6rem;
       border-bottom: 1px solid var(--line);
     }
-    h2 { font-family: Cinzel, serif; font-weight: 400; color: var(--muted); }
+    h2 { font-family: Cinzel, serif; font-weight: 500; color: var(--bone); letter-spacing: .02em; }
     html { scroll-behavior: smooth; }
     .card { scroll-margin-top: 2rem;
       background: linear-gradient(180deg, var(--panel), var(--panel-2));
@@ -94,16 +94,17 @@
     .review {
       margin-top: .65rem; padding-left: .9rem;
       border-left: 2px solid var(--moss);
-      color: #9aa392; font-style: italic;
+      color: #9aa392; font-family: 'EB Garamond', Georgia, serif;
+      font-size: 1.02rem; font-style: italic;
     }
     .score {
       display: inline-block; font-family: Cinzel, serif; font-weight: 600;
-      font-size: 1.1rem; color: var(--brass);
+      font-size: 1.2rem; color: var(--brass);
     }
     input, select, textarea {
       background: var(--panel-hi); color: var(--text);
       border: 1px solid var(--line); border-radius: 1px;
-      padding: .6rem .75rem; font-family: 'EB Garamond', serif; font-size: 1rem;
+      padding: .6rem .75rem; font-family: Inter, sans-serif;
       width: 100%; max-width: 100%;
     }
     input:focus, select:focus { outline: none; border-color: var(--verd); }
@@ -112,14 +113,14 @@
       background: linear-gradient(180deg, var(--moss-hi), var(--moss));
       color: #dfe4d5; border: 1px solid #35422a; border-radius: 1px;
       padding: .55rem 1.15rem;
-      font-family: Cinzel, serif; font-size: .75rem; font-weight: 600;
-      letter-spacing: .12em; text-transform: uppercase;
+      font-family: Inter, sans-serif; font-size: .85rem; font-weight: 600;
+      letter-spacing: .01em;
       cursor: pointer; transition: filter .15s;
     }
     button:hover { filter: brightness(1.18); }
     button.ghost {
       background: transparent; border: 1px solid var(--line); color: #6a7366;
-      padding: .3rem .7rem; font-size: .68rem;
+      padding: .35rem .75rem; font-size: .8rem; font-weight: 500;
     }
     button.ghost:hover { border-color: var(--verd); color: var(--bone); filter: none; }
     .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
@@ -141,8 +142,8 @@
     form.inline { display: inline; }
     .auth { max-width: 380px; margin: 3rem auto; }
     .tag {
-      font-family: Cinzel, serif; font-size: .62rem;
-      text-transform: uppercase; letter-spacing: .12em;
+      font-family: Inter, sans-serif; font-size: .68rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .06em;
       color: #6a7366; border: 1px solid var(--line);
       padding: .15rem .45rem; border-radius: 1px;
     }
@@ -152,8 +153,8 @@
       padding: .4rem .9rem; border-radius: 1px;
       border: 1px solid var(--line); background: var(--panel);
       color: var(--muted); text-decoration: none;
-      font-family: Cinzel, serif; font-size: .7rem;
-      letter-spacing: .1em; text-transform: uppercase;
+      font-family: Inter, sans-serif; font-size: .8rem; font-weight: 500;
+      letter-spacing: .01em;
       transition: all .15s; cursor: pointer;
     }
     .tab:hover { border-color: var(--line-hi); color: var(--bone); }
@@ -208,6 +209,33 @@
       nav { gap: .85rem; }
       body { font-size: 1rem; }
     }
+    .rate { display:flex; align-items:center; gap:.7rem; flex:1 1 200px; min-width:180px; }
+    .rateface { width:36px; height:36px; flex-shrink:0; }
+    .rateface circle { fill:none; stroke:var(--line-hi); stroke-width:2; transition:stroke .15s; }
+    .rateface .fe { fill:var(--muted); transition:fill .15s; }
+    .rateface .fm { fill:none; stroke:var(--muted); stroke-width:2.2; stroke-linecap:round; transition:stroke .15s; }
+    .rate.on .rateface circle { stroke:var(--moss-hi); }
+    .rate.on .rateface .fe { fill:var(--brass); }
+    .rate.on .rateface .fm { stroke:var(--brass); }
+    .ratetrack {
+      position:relative; flex:1; height:30px; cursor:pointer;
+      border:1px solid var(--line); border-radius:3px;
+      background:var(--panel-hi); overflow:hidden; touch-action:none; min-width:100px;
+    }
+    .ratefill {
+      position:absolute; top:0; bottom:0; left:0; width:0;
+      background:linear-gradient(180deg,var(--moss-hi),var(--moss));
+      transition:width .05s linear; pointer-events:none;
+    }
+    .ratetrack::after {
+      content:""; position:absolute; top:0; right:0; bottom:0; left:0; pointer-events:none;
+      background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 1px),rgba(0,0,0,.45) calc(20% - 1px) 20%);
+    }
+    .ratenum {
+      font-family:Cinzel,serif; font-weight:600; font-size:1.05rem;
+      color:var(--brass); min-width:2rem; text-align:right; flex-shrink:0;
+    }
+    @media (max-width:720px) { .ratetrack { height:38px; } .rateface { width:32px; height:32px; } }
   </style>
 </head>
 <body>
@@ -234,5 +262,74 @@
 {% if error %}<p class="err">{{ error }}</p>{% endif %}
 {% block content %}{% endblock %}
 </div>
+<script>
+(function () {
+  var MOUTHS = {
+    1: "M13 28 Q20 21 27 28",
+    2: "M13 27 Q20 23 27 27",
+    3: "M13 26 L27 26",
+    4: "M13 24 Q20 29 27 24",
+    5: "M13 23 Q20 32 27 23"
+  };
+
+  function band(v) {
+    if (v <= 1) return 1;
+    if (v <= 2) return 2;
+    if (v <= 3.5) return 3;
+    if (v <= 4.5) return 4;
+    return 5;
+  }
+
+  function paint(rate, v, commit) {
+    var fill = rate.querySelector('.ratefill');
+    var num = rate.querySelector('.ratenum');
+    var mouth = rate.querySelector('.fm');
+    var eyes = rate.querySelectorAll('.fe');
+    fill.style.width = (v / 5 * 100) + '%';
+    num.textContent = v ? v.toFixed(1) : '0';
+    mouth.setAttribute('d', MOUTHS[band(v)] || MOUTHS[3]);
+    rate.classList.toggle('on', v > 0);
+    var big = v >= 4.5;
+    eyes.forEach(function (e) {
+      e.setAttribute('rx', big ? 3.0 : 2.1);
+      e.setAttribute('ry', big ? 3.3 : 2.6);
+    });
+    if (commit) rate.querySelector('input[name=score]').value = v.toFixed(1);
+  }
+
+  function valueFrom(track, x) {
+    var r = track.getBoundingClientRect();
+    var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+    return Math.max(0.5, Math.min(5, Math.ceil(pct * 10) / 2));
+  }
+
+  document.querySelectorAll('[data-rate]').forEach(function (rate) {
+    var track = rate.querySelector('[data-track]');
+    var input = rate.querySelector('input[name=score]');
+    var dragging = false;
+    paint(rate, parseFloat(input.value) || 0, false);
+
+    function at(e, commit) {
+      var x = e.clientX;
+      if (x === undefined && e.touches && e.touches[0]) x = e.touches[0].clientX;
+      if (x === undefined) return;
+      paint(rate, valueFrom(track, x), commit);
+    }
+
+    track.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      try { track.setPointerCapture(e.pointerId); } catch (err) {}
+      at(e, true);
+      e.preventDefault();
+    });
+    track.addEventListener('pointermove', function (e) { at(e, dragging); });
+    track.addEventListener('pointerup', function () { dragging = false; });
+    track.addEventListener('pointercancel', function () { dragging = false; });
+    track.addEventListener('pointerleave', function () {
+      if (!dragging) paint(rate, parseFloat(input.value) || 0, false);
+    });
+  });
+})();
+</script>
 </body>
 </html>

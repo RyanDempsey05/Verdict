@@ -319,7 +319,7 @@ def ui_rate(
     request: Request,
     media_type: str = Form(...),
     source_id: str = Form(...),
-    score: int = Form(...),
+    score: float = Form(...),
     review: str | None = Form(None),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -330,7 +330,7 @@ def ui_rate(
     if anchor:
         dest = f"{dest}#i-{anchor}"
 
-    if score < 1 or score > 10:
+    if score < 0.5 or score > 5 or (score * 2) % 1 != 0:
         return RedirectResponse(url=dest, status_code=303)
 
     review = (review or "").strip()[:2000] or None
@@ -867,3 +867,77 @@ async def ui_save_list(
     db.commit()
 
     return RedirectResponse(url="/lists", status_code=303)
+
+
+@router.get("/item/{source}/{source_id}", response_class=HTMLResponse)
+def item_page(
+    request: Request,
+    source: str,
+    source_id: str,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if source not in ("tmdb", "igdb"):
+        raise HTTPException(status_code=404, detail="Not found")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", source_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    cached = db.scalar(
+        select(Item).where(Item.source == source, Item.source_id == source_id)
+    )
+
+    data = None
+    try:
+        if source == "igdb":
+            data = igdb.details(source_id)
+        else:
+            kind = cached.type if cached else "movie"
+            data = tmdb.details(kind, source_id)
+            if data is None and not cached:
+                data = tmdb.details("tv", source_id)
+    except Exception:
+        pass
+
+    if data is None:
+        if cached is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        data = {
+            "source": cached.source, "source_id": cached.source_id,
+            "type": cached.type, "title": cached.title, "year": cached.year,
+            "image_url": cached.image_url, "overview": None,
+            "genres": [], "runtime": None, "extra": None,
+        }
+
+    mine = None
+    friends_ratings = []
+    avg = None
+
+    if user is not None and cached is not None:
+        mine = db.scalar(
+            select(Rating).where(
+                Rating.user_id == user.id, Rating.item_id == cached.id
+            )
+        )
+
+        ids = friend_ids(db, user.id)
+        if ids:
+            friends_ratings = db.execute(
+                select(User.username, Rating.score, Rating.review, User.avatar)
+                .join(Rating, Rating.user_id == User.id)
+                .where(Rating.item_id == cached.id, Rating.user_id.in_(ids))
+                .order_by(Rating.score.desc())
+            ).all()
+
+        scores = [r.score for r in friends_ratings]
+        if mine:
+            scores.append(mine.score)
+        if len(scores) > 1:
+            avg = round(sum(scores) / len(scores), 1)
+
+    return templates.TemplateResponse(
+        request, "item.html",
+        {
+            "user": user, "item": data, "mine": mine,
+            "friends_ratings": friends_ratings, "avg": avg,
+        },
+    )

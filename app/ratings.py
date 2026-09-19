@@ -8,8 +8,8 @@ from app.models import Item, Rating, User
 
 router = APIRouter()
 
-MIN_SCORE = 1
-MAX_SCORE = 10
+MIN_SCORE = 0.5
+MAX_SCORE = 5
 MAX_REVIEW_LEN = 2000
 
 
@@ -25,7 +25,7 @@ def _serialize(rating: Rating) -> dict:
 
 
 def _validate(score: int, review: str | None) -> str | None:
-    if score < MIN_SCORE or score > MAX_SCORE:
+    if score < MIN_SCORE or score > MAX_SCORE or (score * 2) % 1 != 0:
         raise HTTPException(
             status_code=400, detail=f"Score must be between {MIN_SCORE} and {MAX_SCORE}"
         )
@@ -39,7 +39,7 @@ def _validate(score: int, review: str | None) -> str | None:
 @router.post("/ratings")
 def create_rating(
     item_id: int = Form(...),
-    score: int = Form(...),
+    score: float = Form(...),
     review: str | None = Form(None),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -79,7 +79,7 @@ def list_my_ratings(
 @router.put("/ratings/{rating_id}")
 def update_rating(
     rating_id: int,
-    score: int = Form(...),
+    score: float = Form(...),
     review: str | None = Form(None),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),

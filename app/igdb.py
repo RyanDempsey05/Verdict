@@ -166,3 +166,40 @@ def browse(page: int = 1) -> list[dict]:
         if item is not None:
             out.append(item)
     return out
+
+
+def details(source_id: str) -> dict | None:
+    try:
+        game_id = int(source_id)
+    except ValueError:
+        return None
+
+    body = (
+        "fields name,first_release_date,cover.url,summary,genres.name,"
+        "involved_companies.company.name,involved_companies.developer; "
+        f"where id = {game_id};"
+    )
+
+    with httpx.Client(timeout=8.0) as client:
+        resp = client.post(f"{BASE_URL}/games", headers=_headers(), content=body)
+        resp.raise_for_status()
+        rows = resp.json()
+
+    if not rows:
+        return None
+    row = rows[0]
+    base = _normalize(row)
+    if base is None:
+        return None
+
+    dev = None
+    for ic in row.get("involved_companies", []):
+        if ic.get("developer") and ic.get("company", {}).get("name"):
+            dev = ic["company"]["name"]
+            break
+
+    base["overview"] = row.get("summary") or None
+    base["genres"] = [g["name"] for g in row.get("genres", [])][:4]
+    base["runtime"] = None
+    base["extra"] = dev
+    return base

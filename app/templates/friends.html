@@ -3,6 +3,7 @@
 <h1>Friends</h1>
 
 <form method="post" action="/ui/friends/request" class="row">
+  <!-- decoy field: Safari fills the first text input it thinks is a username; this absorbs it -->
   <input type="text" name="fake_user" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1" aria-hidden="true">
   <input id="fq" name="friend_handle" type="search" role="searchbox" autocomplete="one-time-code" inputmode="text" placeholder="add someone by username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" required>
   <button type="submit">Send request</button>

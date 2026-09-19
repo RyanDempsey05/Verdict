@@ -157,3 +157,41 @@ def browse(media_type: str, page: int = 1) -> list[dict]:
             }
         )
     return results
+
+
+def details(media_type: str, source_id: str) -> dict | None:
+    if media_type not in ("movie", "tv"):
+        return None
+
+    with httpx.Client(timeout=8.0) as client:
+        resp = client.get(
+            f"{BASE_URL}/{media_type}/{source_id}",
+            headers=_headers,
+            params={"language": "en-US"},
+        )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        row = resp.json()
+
+    title = row.get("title") if media_type == "movie" else row.get("name")
+    date = row.get("release_date") if media_type == "movie" else row.get("first_air_date")
+    if not title:
+        return None
+
+    runtime = row.get("runtime")
+    if runtime is None and row.get("episode_run_time"):
+        runtime = row["episode_run_time"][0]
+
+    return {
+        "source": "tmdb",
+        "source_id": str(row["id"]),
+        "type": media_type,
+        "title": title,
+        "year": _year(date),
+        "image_url": _poster_url(row.get("poster_path")),
+        "overview": row.get("overview") or None,
+        "genres": [g["name"] for g in row.get("genres", [])][:4],
+        "runtime": runtime,
+        "extra": f"{row.get('number_of_seasons')} seasons" if media_type == "tv" and row.get("number_of_seasons") else None,
+    }

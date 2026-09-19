@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    Numeric,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -66,7 +67,7 @@ class Rating(Base):
     item_id: Mapped[int] = mapped_column(
         ForeignKey("items.id", ondelete="CASCADE"), index=True
     )
-    score: Mapped[int] = mapped_column(Integer)
+    score: Mapped[float] = mapped_column(Numeric(2, 1))
     review: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
