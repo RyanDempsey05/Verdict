@@ -34,10 +34,6 @@
 
   function card(row) {
     var yours = mine[row.source + '|' + row.source_id];
-    var opts = '';
-    for (var n = 10; n >= 1; n--) {
-      opts += '<option value="' + n + '"' + (yours === n ? ' selected' : '') + '>' + n + '</option>';
-    }
     return '' +
       '<div class="card">' +
         (row.image_url ? '<img src="' + esc(row.image_url) + '" alt="">' : '') +
@@ -45,12 +41,22 @@
           '<div class="title">' + esc(row.title) +
             ' <span class="year">' + (row.year ? esc(row.year) : '') + '</span></div>' +
           '<div class="meta"><span class="tag">' + esc(row.type) + '</span></div>' +
-          (yours ? '<div class="meta"><span class="score">' + yours + '</span><span class="year">/10 &mdash; your verdict</span></div>' : '') +
+          (yours ? '<div class="meta"><span class="score">' + yours + '</span><span class="year">/5 &mdash; your verdict</span></div>' : '') +
           (GUEST ? '<div style="margin-top:.7rem"><a class="tab" href="/register">Sign up to rate</a></div>' : '') +
       (GUEST ? '' : '<form method="post" action="/rate" class="row" style="margin-top:.7rem">') +
             '<input type="hidden" name="media_type" value="' + esc(row.type) + '">' +
             '<input type="hidden" name="source_id" value="' + esc(row.source_id) + '">' +
-            '<select name="score" style="width:auto;flex:0 0 auto">' + opts + '</select>' +
+            '<div class="rate" data-rate>' +
+              '<svg class="rateface" viewBox="0 0 40 40">' +
+                '<circle cx="20" cy="20" r="17"/>' +
+                '<ellipse class="fe" cx="14" cy="16" rx="2.1" ry="2.6"/>' +
+                '<ellipse class="fe" cx="26" cy="16" rx="2.1" ry="2.6"/>' +
+                '<path class="fm" d="M13 26 L27 26"/>' +
+              '</svg>' +
+              '<div class="ratetrack" data-track><div class="ratefill"></div></div>' +
+              '<span class="ratenum">0</span>' +
+              '<input type="hidden" name="score" value="' + (yours || 0) + '">' +
+            '</div>' +
             '<input name="review" placeholder="say something (optional)" maxlength="2000">' +
             '<button type="submit">' + (yours ? 'Update' : 'Rate') + '</button>' +
           '</form>' +
@@ -75,6 +81,7 @@
           return;
         }
         box.innerHTML = data.results.map(card).join('');
+        if (window.initRates) window.initRates(box);
       })
       .catch(function () {
         if (mine !== seq) return;

@@ -36,7 +36,7 @@
     <div class="card-body">
       <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
       <div class="meta">
-        <span class="score">{{ row.score }}</span><span class="year">/10</span>
+        <span class="score">{{ row.score }}</span><span class="year">/5</span>
         {% if active == 'all' %}<span class="tag" style="margin-left:.5rem">{{ row.type }}</span>{% endif %}
       </div>
       {% if row.review %}<div class="review">{{ row.review }}</div>{% endif %}

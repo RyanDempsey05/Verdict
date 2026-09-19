@@ -32,7 +32,10 @@
     {% endfor %}
   </div>
 
-  <button type="submit" style="margin-top:1rem">Save {{ label }}</button>
+  <div class="row" style="margin-top:1rem">
+    <button type="submit">Save {{ label }}</button>
+    <a class="tab" href="/share/{{ user.username }}/{{ kind }}">Share card</a>
+  </div>
 </form>
 {% endif %}
 {% endfor %}

@@ -24,9 +24,14 @@
 {% else %}
 
 {% if is_self or (lists and (lists.movie or lists.tv or lists.game)) %}
-<div class="row" style="margin:2rem 0 1rem;align-items:baseline;gap:.8rem">
-  <h2 style="font-size:1.3rem;margin:0">Top Five</h2>
+<div class="row" style="margin:2rem 0 1rem;align-items:baseline;gap:.6rem">
+  <h2 style="font-size:1.3rem;margin:0;margin-right:.4rem">Top Five</h2>
   {% if is_self %}<a href="/lists" class="tab" style="padding:.2rem .6rem">Edit</a>{% endif %}
+  {% for k, lbl in list_types.items() %}
+    {% if lists[k] %}
+      <a class="tab" style="padding:.2rem .6rem" href="/share/{{ profile.username }}/{{ k }}">Share {{ lbl }}</a>
+    {% endif %}
+  {% endfor %}
 </div>
 {% for kind, label in list_types.items() %}
   {% if lists[kind] %}
@@ -69,7 +74,7 @@
     <div class="card-body">
       <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
       <div class="meta">
-        <span class="score">{{ row.score }}</span><span class="year">/10</span>
+        <span class="score">{{ row.score }}</span><span class="year">/5</span>
         {% if active == 'all' %}<span class="tag" style="margin-left:.5rem">{{ row.type }}</span>{% endif %}
       </div>
       {% if row.review %}<div class="review">{{ row.review }}</div>{% endif %}

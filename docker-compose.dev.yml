@@ -28,6 +28,8 @@ services:
       TMDB_TOKEN: ${TMDB_TOKEN}
       TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
       TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      MAIL_FROM: ${MAIL_FROM}
     depends_on:
       db:
         condition: service_healthy

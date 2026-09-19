@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Choose a new password — VERDICT{% endblock %}
+{% block content %}
+
+{% if invalid %}
+  <h1>Link expired</h1>
+  <p class="meta" style="margin-bottom:1.25rem">
+    That reset link has expired or already been used.
+  </p>
+  <a class="tab" href="/forgot">Request a new one</a>
+{% else %}
+  <h1>Choose a new password</h1>
+  {% if error %}<div class="empty" style="margin-bottom:1rem">{{ error }}</div>{% endif %}
+  <form method="post" action="/ui/reset" style="max-width:420px">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div class="row">
+      <input name="password" type="password" required minlength="12"
+             placeholder="at least 12 characters" autocomplete="new-password" style="flex:1 1 220px">
+      <button type="submit">Save</button>
+    </div>
+  </form>
+{% endif %}
+
+{% endblock %}

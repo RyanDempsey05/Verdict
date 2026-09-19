@@ -1,19 +1,22 @@
+import hashlib
+import os
 import re
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import discover, igdb, media, tmdb
+from app import card, discover, igdb, mail, media, tmdb
 from app.auth import _set_session, get_current_user, require_user
 from app.db import get_db
 from app.friends import friend_ids
 from app.limiter import limiter
-from app.models import Friendship, Item, ListEntry, Rating, User
+from app.models import Friendship, Item, ListEntry, PasswordReset, Rating, User
 from app.limiter import limiter
 from app.security import SESSION_COOKIE, hash_password, verify_password
 
@@ -82,8 +85,19 @@ def ui_register(
             status_code=400,
         )
 
-    response = RedirectResponse(url="/", status_code=303)
+    invite = request.cookies.get("pending_invite")
+    landed_on = "/"
+    if invite and re.fullmatch(r"[A-Za-z0-9_-]{1,16}", invite):
+        inviter = db.scalar(select(User).where(User.invite_code == invite))
+        if inviter is not None and inviter.id != new_user.id:
+            _link_friendship(db, new_user, inviter)
+            landed_on = f"/u/{inviter.username}"
+
+    response = RedirectResponse(url=landed_on, status_code=303)
     _set_session(response, new_user.id)
+    response.delete_cookie(
+        "pending_invite", path="/", secure=True, httponly=True, samesite="lax"
+    )
     return response
 
 
@@ -103,8 +117,19 @@ def ui_login(
             status_code=401,
         )
 
-    response = RedirectResponse(url="/", status_code=303)
+    invite = request.cookies.get("pending_invite")
+    landed_on = "/"
+    if invite and re.fullmatch(r"[A-Za-z0-9_-]{1,16}", invite):
+        inviter = db.scalar(select(User).where(User.invite_code == invite))
+        if inviter is not None and inviter.id != found.id:
+            _link_friendship(db, found, inviter)
+            landed_on = f"/u/{inviter.username}"
+
+    response = RedirectResponse(url=landed_on, status_code=303)
     _set_session(response, found.id)
+    response.delete_cookie(
+        "pending_invite", path="/", secure=True, httponly=True, samesite="lax"
+    )
     return response
 
 
@@ -298,7 +323,7 @@ def search_page(
             .join(Rating, Rating.item_id == Item.id)
             .where(Rating.user_id == user.id)
         ).all()
-        mine = {(r.source, r.source_id): r.score for r in rows}
+        mine = {(r.source, r.source_id): float(r.score) for r in rows}
 
     return templates.TemplateResponse(
         request, "search.html",
@@ -941,3 +966,286 @@ def item_page(
             "friends_ratings": friends_ratings, "avg": avg,
         },
     )
+
+
+@router.get("/card/{username}/{kind}.png")
+@limiter.limit("20/minute")
+def share_card(
+    request: Request,
+    username: str,
+    kind: str,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if kind not in LIST_TYPES:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    profile = db.scalar(select(User).where(User.username == username.strip()))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    is_self = user is not None and user.id == profile.id
+    visible = (
+        is_self
+        or profile.profile_public
+        or (user is not None and profile.id in friend_ids(db, user.id))
+    )
+    if not visible:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    rows = db.execute(
+        select(Item.title, Item.year, Item.image_url, Rating.score)
+        .join(ListEntry, ListEntry.item_id == Item.id)
+        .outerjoin(
+            Rating,
+            (Rating.item_id == Item.id) & (Rating.user_id == profile.id),
+        )
+        .where(ListEntry.user_id == profile.id, ListEntry.type == kind)
+        .order_by(ListEntry.position)
+    ).all()
+
+    entries = [
+        {"title": r.title, "year": r.year, "image_url": r.image_url, "score": r.score}
+        for r in rows
+    ]
+
+    avatar_path = None
+    if profile.avatar and "/" not in profile.avatar and ".." not in profile.avatar:
+        candidate = os.path.join("/media", profile.avatar)
+        if os.path.exists(candidate):
+            avatar_path = candidate
+
+    png = card.build(kind, profile.username, entries, avatar_path)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'inline; filename="verdict-{profile.username}-{kind}.png"',
+            "Cache-Control": "no-cache, must-revalidate",
+        },
+    )
+
+
+@router.get("/share/{username}/{kind}", response_class=HTMLResponse)
+def share_page(
+    request: Request,
+    username: str,
+    kind: str,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if kind not in LIST_TYPES:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    profile = db.scalar(select(User).where(User.username == username.strip()))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    is_self = user is not None and user.id == profile.id
+    visible = (
+        is_self
+        or profile.profile_public
+        or (user is not None and profile.id in friend_ids(db, user.id))
+    )
+    if not visible:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return templates.TemplateResponse(
+        request, "share.html",
+        {
+            "user": user, "profile": profile, "kind": kind,
+            "label": LIST_TYPES[kind], "is_self": is_self,
+        },
+    )
+
+
+def _ensure_invite_code(db: Session, user: User) -> str:
+    if user.invite_code:
+        return user.invite_code
+    for _ in range(6):
+        code = secrets.token_urlsafe(6)[:8]
+        exists = db.scalar(select(User.id).where(User.invite_code == code))
+        if exists is None:
+            user.invite_code = code
+            db.commit()
+            return code
+    raise HTTPException(status_code=500, detail="Could not generate invite code")
+
+
+@router.get("/i/{code}")
+def invite_landing(
+    code: str,
+    response: Response,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,16}", code):
+        return RedirectResponse(url="/", status_code=303)
+
+    inviter = db.scalar(select(User).where(User.invite_code == code))
+    if inviter is None:
+        return RedirectResponse(url="/", status_code=303)
+
+    # already signed in: send the friend request straight away
+    if user is not None:
+        if user.id != inviter.id:
+            _link_friendship(db, user, inviter)
+        return RedirectResponse(url=f"/u/{inviter.username}", status_code=303)
+
+    resp = RedirectResponse(url="/register", status_code=303)
+    resp.set_cookie(
+        "pending_invite",
+        code,
+        max_age=1800,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+    return resp
+
+
+def _link_friendship(db: Session, a: User, b: User) -> None:
+    """Create an accepted friendship between a and b, or accept a pending one."""
+    existing = db.scalar(
+        select(Friendship).where(
+            or_(
+                and_(Friendship.requester_id == a.id, Friendship.addressee_id == b.id),
+                and_(Friendship.requester_id == b.id, Friendship.addressee_id == a.id),
+            )
+        )
+    )
+    if existing is not None:
+        if existing.status == "pending":
+            existing.status = "accepted"
+            db.commit()
+        return
+
+    db.add(
+        Friendship(requester_id=b.id, addressee_id=a.id, status="accepted")
+    )
+    db.commit()
+
+
+@router.get("/invite", response_class=HTMLResponse)
+def invite_page(
+    request: Request,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    code = _ensure_invite_code(db, user)
+    return templates.TemplateResponse(
+        request, "invite.html", {"user": user, "code": code}
+    )
+
+
+RESET_TTL_MINUTES = 60
+
+
+def _hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+@router.get("/forgot", response_class=HTMLResponse)
+def forgot_page(request: Request, user: User | None = Depends(get_current_user)):
+    if user is not None:
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(request, "forgot.html", {"user": None})
+
+
+@router.post("/ui/forgot", response_class=HTMLResponse)
+@limiter.limit("5/hour")
+def ui_forgot(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    found = db.scalar(select(User).where(User.email == email.strip().lower()))
+
+    if found is not None:
+        db.execute(
+            delete(PasswordReset).where(
+                PasswordReset.user_id == found.id, PasswordReset.used_at.is_(None)
+            )
+        )
+        raw = secrets.token_urlsafe(32)
+        db.add(
+            PasswordReset(
+                user_id=found.id,
+                token_hash=_hash_token(raw),
+                expires_at=datetime.now(timezone.utc)
+                + timedelta(minutes=RESET_TTL_MINUTES),
+            )
+        )
+        db.commit()
+        mail.send_password_reset(
+            found.email, found.username, f"https://verdictapp.app/reset/{raw}"
+        )
+
+    # same response either way, so the form can't be used to discover accounts
+    return templates.TemplateResponse(request, "forgot.html", {"user": None, "sent": True})
+
+
+@router.get("/reset/{token}", response_class=HTMLResponse)
+def reset_page(
+    request: Request,
+    token: str,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.scalar(
+        select(PasswordReset).where(
+            PasswordReset.token_hash == _hash_token(token),
+            PasswordReset.used_at.is_(None),
+            PasswordReset.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    if row is None:
+        return templates.TemplateResponse(
+            request, "reset.html", {"user": None, "invalid": True}, status_code=400
+        )
+    return templates.TemplateResponse(
+        request, "reset.html", {"user": None, "token": token}
+    )
+
+
+@router.post("/ui/reset", response_class=HTMLResponse)
+@limiter.limit("10/hour")
+def ui_reset(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    row = db.scalar(
+        select(PasswordReset).where(
+            PasswordReset.token_hash == _hash_token(token),
+            PasswordReset.used_at.is_(None),
+            PasswordReset.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    if row is None:
+        return templates.TemplateResponse(
+            request, "reset.html", {"user": None, "invalid": True}, status_code=400
+        )
+
+    if len(password) < 12:
+        return templates.TemplateResponse(
+            request, "reset.html",
+            {"user": None, "token": token, "error": "Password must be at least 12 characters"},
+            status_code=400,
+        )
+
+    target = db.get(User, row.user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    target.password_hash = hash_password(password)
+    row.used_at = datetime.now(timezone.utc)
+    db.commit()
+
+    response = RedirectResponse(url="/", status_code=303)
+    _set_session(response, target.id)
+    return response

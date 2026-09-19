@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.username }}'s top five {{ label|lower }} — VERDICT{% endblock %}
+{% block content %}
+
+<div class="row" style="align-items:baseline;gap:.8rem;margin-bottom:1.25rem">
+  <h1 style="margin:0">Top Five {{ label }}</h1>
+  <a class="tab" href="/u/{{ profile.username }}">&larr; Back</a>
+</div>
+
+<div style="max-width:380px">
+  <img id="cardimg" src="/card/{{ profile.username }}/{{ kind }}.png?t={{ range(100000, 999999) | random }}"
+       alt="{{ profile.username }}'s top five {{ label|lower }}"
+       style="width:100%;display:block;border:1px solid var(--line);border-radius:3px">
+
+  <div class="row" style="margin-top:1rem">
+    <button type="button" id="sharebtn" style="flex:1">Share / Save</button>
+  </div>
+
+  <div class="meta" id="hint" style="margin-top:.8rem">
+    On iPhone, press and hold the image to save it to your camera roll.
+  </div>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('sharebtn');
+  var url = "/card/{{ profile.username }}/{{ kind }}.png";
+  var name = "verdict-{{ profile.username }}-{{ kind }}.png";
+
+  var isDesktop = !navigator.share;
+  if (isDesktop) btn.textContent = 'Save image';
+
+  btn.addEventListener('click', async function () {
+    var pageUrl = window.location.href;
+
+    if (isDesktop) {
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+
+    if (navigator.share) {
+      try {
+        var res = await fetch(url);
+        var blob = await res.blob();
+        var file = new File([blob], name, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: "{{ profile.username }}'s top five {{ label|lower }}",
+            text: 'My top five {{ label|lower }} on Verdict'
+          });
+          return;
+        }
+        await navigator.share({ title: 'Verdict', text: 'My top five {{ label|lower }}', url: pageUrl });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(pageUrl);
+      btn.textContent = 'Link copied';
+      setTimeout(function () { btn.textContent = 'Share / Save'; }, 1800);
+    } catch (e) {
+      window.prompt('Copy this link', pageUrl);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

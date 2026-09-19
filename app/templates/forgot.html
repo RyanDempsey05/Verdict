@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Forgot password — VERDICT{% endblock %}
+{% block content %}
+
+<h1>Forgot password</h1>
+
+{% if sent %}
+  <div class="card" style="display:block;max-width:420px">
+    <p style="margin:0;color:var(--text)">
+      If that email has an account, a reset link is on its way. It expires in an hour.
+    </p>
+    <div class="meta" style="margin-top:.9rem">
+      Check your spam folder if it doesn't turn up.
+    </div>
+  </div>
+  <div style="margin-top:1.25rem"><a class="tab" href="/login">Back to login</a></div>
+{% else %}
+  <p class="meta" style="margin-bottom:1.25rem">
+    Enter the email you signed up with and we'll send you a link.
+  </p>
+  <form method="post" action="/ui/forgot" style="max-width:420px">
+    <div class="row">
+      <input name="email" type="email" required placeholder="you@example.com" style="flex:1 1 220px">
+      <button type="submit">Send link</button>
+    </div>
+  </form>
+  <div style="margin-top:1.25rem"><a class="tab" href="/login">Back to login</a></div>
+{% endif %}
+
+{% endblock %}

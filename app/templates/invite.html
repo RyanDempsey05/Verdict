@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Invite friends — VERDICT{% endblock %}
+{% block content %}
+
+<h1>Invite friends</h1>
+<p class="meta" style="margin-bottom:1.5rem">
+  Anyone who signs up through your link is added as a friend automatically.
+</p>
+
+<div class="card" style="display:block">
+  <div class="meta" style="margin-bottom:.5rem">Your link</div>
+  <div class="row">
+    <input id="invlink" readonly value="https://verdictapp.app/i/{{ code }}"
+           style="flex:1 1 220px" onclick="this.select()">
+    <button type="button" id="copybtn">Copy</button>
+  </div>
+  <div class="row" style="margin-top:.75rem">
+    <button type="button" id="shareinv" style="display:none">Share</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var link = "https://verdictapp.app/i/{{ code }}";
+  var copy = document.getElementById('copybtn');
+  var share = document.getElementById('shareinv');
+
+  copy.addEventListener('click', async function () {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch (e) {
+      document.getElementById('invlink').select();
+      document.execCommand('copy');
+    }
+    copy.textContent = 'Copied';
+    setTimeout(function () { copy.textContent = 'Copy'; }, 1600);
+  });
+
+  if (navigator.share) {
+    share.style.display = '';
+    share.addEventListener('click', function () {
+      navigator.share({
+        title: 'Verdict',
+        text: 'Rate films, shows, and games with me on Verdict',
+        url: link
+      }).catch(function () {});
+    });
+  }
+})();
+</script>
+
+{% endblock %}

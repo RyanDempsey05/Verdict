@@ -28,6 +28,7 @@ class User(Base):
     avatar: Mapped[str | None] = mapped_column(String(64), nullable=True)
     backdrop: Mapped[str | None] = mapped_column(String(64), nullable=True)
     profile_public: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    invite_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
     username_changed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -118,6 +119,23 @@ class ListEntry(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("items.id", ondelete="CASCADE"))
     type: Mapped[str] = mapped_column(String(16), index=True)
     position: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
