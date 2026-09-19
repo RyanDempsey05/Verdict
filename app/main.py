@@ -37,3 +37,19 @@ app.mount("/media", StaticFiles(directory="/media"), name="media")
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+def _make_og_card() -> None:
+    from app import discover as _discover, ogcard as _ogcard
+
+    if os.path.exists(_ogcard.OUT_PATH):
+        return
+    posters = []
+    try:
+        data = _discover.trending()
+        for key in ("movies", "shows", "games"):
+            posters += [r["image_url"] for r in data.get(key, []) if r.get("image_url")]
+    except Exception:
+        pass
+    _ogcard.ensure(posters)
