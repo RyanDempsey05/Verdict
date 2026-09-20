@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Find something — VERDICT{% endblock %}
+{% block content %}
+
+<div class="askhero" id="hero">
+  <div class="aitag">AI</div>
+  <h1>Ask Verdict</h1>
+  <p>
+    Tell it what you're in the mood for and it'll suggest films, shows, and games
+    worth your time. It reads what you've already rated, so the longer you use
+    Verdict the better it gets.
+  </p>
+
+  <div class="prompts">
+    <button type="button" class="prompt" data-p="A slow-burn thriller that isn't depressing">
+      A slow-burn thriller that isn't depressing
+      <span>Describe a mood</span>
+    </button>
+    <button type="button" class="prompt" data-p="A game like Hollow Knight but easier">
+      A game like Hollow Knight but easier
+      <span>Compare to something you liked</span>
+    </button>
+    <button type="button" class="prompt" data-p="Something funny I can finish in under 100 minutes">
+      Something funny I can finish in under 100 minutes
+      <span>Set a constraint</span>
+    </button>
+    <button type="button" class="prompt" data-p="Shows to watch after Severance">
+      Shows to watch after Severance
+      <span>Pick up where you left off</span>
+    </button>
+  </div>
+
+  <div class="askfoot">Powered by Claude. Suggestions are checked against real titles.</div>
+</div>
+
+<div class="chat" id="thread"></div>
+
+<div class="chat askbar">
+  <form id="askform">
+    <div class="row">
+      <input id="askinput" maxlength="400" required autocomplete="off" autofocus
+             placeholder="What are you in the mood for?" style="flex:1 1 260px">
+      <button type="submit" id="askbtn">Ask</button>
+    </div>
+  </form>
+
+</div>
+
+<script>
+(function () {
+  var thread = document.getElementById('thread');
+  var form = document.getElementById('askform');
+  var input = document.getElementById('askinput');
+  var btn = document.getElementById('askbtn');
+  var hero = document.getElementById('hero');
+  var turns = [];
+  var busy = false;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function bubble(who, html) {
+    var wrap = document.createElement('div');
+    wrap.className = 'msg ' + who;
+    wrap.innerHTML = '<div class="bubble">' + html + '</div>';
+    thread.appendChild(wrap);
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    return wrap;
+  }
+
+  function thinking() {
+    var wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.innerHTML = '<div class="bubble"><div class="thinking"><span class="spinner"></span><span>Thinking…</span></div></div>';
+    thread.appendChild(wrap);
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    return wrap;
+  }
+
+  function card(r) {
+    var rated = r.score ? r.score : 0;
+    return '' +
+      '<div class="card" id="i-' + esc(r.type) + '-' + esc(r.source_id) + '">' +
+        '<a class="cardlink" href="/item/' + esc(r.source) + '/' + esc(r.source_id) + '" style="flex-shrink:0">' +
+          (r.image_url ? '<img src="' + esc(r.image_url) + '" alt="">' : '') +
+        '</a>' +
+        '<div class="card-body">' +
+          '<a class="cardlink" href="/item/' + esc(r.source) + '/' + esc(r.source_id) + '">' +
+            '<div class="title">' + esc(r.title) + ' <span class="year">' + (r.year ? esc(r.year) : '') + '</span></div>' +
+          '</a>' +
+          '<div class="meta"><span class="tag">' + esc(r.type) + '</span></div>' +
+          (r.why ? '<div class="why">' + esc(r.why) + '</div>' : '') +
+          '<form method="post" action="/rate" class="row" style="margin-top:.7rem">' +
+            '<input type="hidden" name="media_type" value="' + esc(r.type) + '">' +
+            '<input type="hidden" name="source_id" value="' + esc(r.source_id) + '">' +
+            '<div class="rate" data-rate>' +
+              '<svg class="rateface" viewBox="0 0 40 40">' +
+                '<circle cx="20" cy="20" r="17"/>' +
+                '<ellipse class="fe" cx="14" cy="16" rx="2.1" ry="2.6"/>' +
+                '<ellipse class="fe" cx="26" cy="16" rx="2.1" ry="2.6"/>' +
+                '<path class="fm" d="M13 26 L27 26"/>' +
+              '</svg>' +
+              '<div class="ratetrack" data-track><div class="ratefill"></div></div>' +
+              '<span class="ratenum">0</span>' +
+              '<input type="hidden" name="score" value="' + rated + '">' +
+            '</div>' +
+            '<input name="review" placeholder="say something (optional)" maxlength="2000">' +
+            '<button type="submit">' + (rated ? 'Update' : 'Rate') + '</button>' +
+          '</form>' +
+          '<form method="post" action="/ui/watchlist" style="margin-top:.4rem">' +
+            '<input type="hidden" name="media_type" value="' + esc(r.type) + '">' +
+            '<input type="hidden" name="source_id" value="' + esc(r.source_id) + '">' +
+            '<input type="hidden" name="back" value="/find">' +
+            '<button type="submit" class="ghost">' + (r.saved ? '&#10003; Saved' : '+ Watchlist') + '</button>' +
+          '</form>' +
+        '</div>' +
+      '</div>';
+  }
+
+  async function send(text) {
+    if (busy || !text.trim()) return;
+    busy = true;
+    btn.disabled = true;
+    input.value = '';
+    if (hero) hero.style.display = 'none';
+
+    bubble('user', esc(text));
+    turns.push({ role: 'user', content: text });
+    var pending = thinking();
+
+    try {
+      var res = await fetch('/api/find', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turns: turns })
+      });
+
+      if (res.status === 429) {
+        pending.remove();
+        bubble('bot', 'You have hit the hourly limit. Try again a bit later.');
+        return;
+      }
+      if (!res.ok) throw new Error('bad status');
+
+      var data = await res.json();
+      pending.remove();
+
+      if (data.mode === 'ask') {
+        var html = esc(data.note || 'A couple of things first:');
+        html += '<div class="chips">';
+        (data.questions || []).forEach(function (q) {
+          html += '<button type="button" class="chip" data-q="' + esc(q) + '">' + esc(q) + '</button>';
+        });
+        html += '</div>';
+        var node = bubble('bot', html);
+        node.querySelectorAll('.chip').forEach(function (c) {
+          c.addEventListener('click', function () {
+            input.value = '';
+            input.focus();
+            input.placeholder = c.getAttribute('data-q');
+          });
+        });
+        turns.push({ role: 'assistant', content: data.raw || JSON.stringify(data) });
+        return;
+      }
+
+      if (data.mode === 'results') {
+        var out = esc(data.note || 'Here are a few:');
+        var node2 = bubble('bot', out);
+        var holder = document.createElement('div');
+        holder.style.marginTop = '1rem';
+        holder.innerHTML = (data.results || []).map(card).join('');
+        thread.appendChild(holder);
+        if (window.initRates) window.initRates(holder);
+        if (!data.results || !data.results.length) {
+          bubble('bot', 'Nothing came back for that. Try describing it differently.');
+        }
+        turns.push({ role: 'assistant', content: data.raw || '' });
+        holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
+      bubble('bot', esc(data.note || 'Something went wrong. Try again.'));
+    } catch (e) {
+      pending.remove();
+      bubble('bot', 'Something went wrong. Try again in a moment.');
+    } finally {
+      busy = false;
+      btn.disabled = false;
+    }
+  }
+
+  document.querySelectorAll('.prompt').forEach(function (p) {
+    p.addEventListener('click', function () { send(p.getAttribute('data-p')); });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    send(input.value);
+  });
+})();
+</script>
+
+{% endblock %}

@@ -47,6 +47,11 @@
           <input name="review" placeholder="say something (optional)" maxlength="2000">
           <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
         </form>
+        <form method="post" action="/ui/watchlist" style="margin-top:.4rem">
+          <input type="hidden" name="media_type" value="{{ row.type }}">
+          <input type="hidden" name="source_id" value="{{ row.source_id }}">
+          <button type="submit" class="ghost">{% if (row.source, row.source_id) in saved %}&#10003; Saved{% else %}+ Watchlist{% endif %}</button>
+        </form>
       {% endif %}
     </div>
   </div>

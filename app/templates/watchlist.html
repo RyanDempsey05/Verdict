@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — VERDICT{% endblock %}
+{% block content %}
+<h1>Watchlist</h1>
+
+<div class="tabs">
+  <a href="/watchlist" class="tab {% if type == 'all' %}on{% endif %}">All</a>
+  <a href="/watchlist?type=movie" class="tab {% if type == 'movie' %}on{% endif %}">Films{% if counts.get('movie') %} {{ counts['movie'] }}{% endif %}</a>
+  <a href="/watchlist?type=tv" class="tab {% if type == 'tv' %}on{% endif %}">Shows{% if counts.get('tv') %} {{ counts['tv'] }}{% endif %}</a>
+  <a href="/watchlist?type=game" class="tab {% if type == 'game' %}on{% endif %}">Games{% if counts.get('game') %} {{ counts['game'] }}{% endif %}</a>
+</div>
+
+{% if not rows %}
+  <div class="empty" style="text-align:left;padding:1.5rem">
+    <div style="color:var(--bone);margin-bottom:.5rem">Nothing saved yet</div>
+    <div style="margin-bottom:1rem">Add things you want to get to. They come off the list once you rate them.</div>
+    <a class="tab" href="/">Find something</a>
+  </div>
+{% endif %}
+
+{% for row in rows %}
+  <div class="card">
+    <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}" style="flex-shrink:0">{% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}</a>
+    <div class="card-body">
+      <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}"><div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div></a>
+      <div class="meta"><span class="tag">{{ row.type }}</span></div>
+      <form method="post" action="/ui/watchlist" style="margin-top:.6rem">
+        <input type="hidden" name="media_type" value="{{ row.type }}">
+        <input type="hidden" name="source_id" value="{{ row.source_id }}">
+        <input type="hidden" name="back" value="/watchlist{% if type != 'all' %}?type={{ type }}{% endif %}">
+        <button type="submit" class="ghost">Remove</button>
+      </form>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

@@ -11,12 +11,14 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import card, categories, discover, igdb, mail, media, tmdb
+from app import card, categories, discover, igdb, mail, media, recommend, tmdb
 from app.auth import _set_session, get_current_user, require_user
 from app.db import get_db
 from app.friends import friend_ids
 from app.limiter import limiter
-from app.models import Friendship, Item, ListEntry, PasswordReset, Rating, User
+from app.models import (
+    Friendship, Item, ListEntry, PasswordReset, Rating, User, WatchlistEntry,
+)
 from app.limiter import limiter
 from app.security import SESSION_COOKIE, hash_password, verify_password
 
@@ -351,6 +353,44 @@ def _safe_next(raw: str | None) -> str:
     return raw[:200]
 
 
+def _watchlist_keys(db: Session, user: User | None) -> set:
+    """(source, source_id) pairs the user has saved, for marking cards."""
+    if user is None:
+        return set()
+    rows = db.execute(
+        select(Item.source, Item.source_id)
+        .join(WatchlistEntry, WatchlistEntry.item_id == Item.id)
+        .where(WatchlistEntry.user_id == user.id)
+    ).all()
+    return {(r.source, r.source_id) for r in rows}
+
+
+def _cache_item(db: Session, media_type: str, source_id: str) -> Item | None:
+    """Find the item, fetching and caching it from the API if we've not seen it."""
+    source = "igdb" if media_type == "game" else "tmdb"
+
+    item = db.scalar(
+        select(Item).where(Item.source == source, Item.source_id == source_id)
+    )
+    if item is not None:
+        return item
+
+    data = igdb.fetch_one(source_id) if source == "igdb" else tmdb.fetch_one(media_type, source_id)
+    if data is None:
+        return None
+
+    item = Item(**data)
+    db.add(item)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        item = db.scalar(
+            select(Item).where(Item.source == source, Item.source_id == source_id)
+        )
+    return item
+
+
 @router.post("/rate")
 def ui_rate(
     request: Request,
@@ -402,6 +442,12 @@ def ui_rate(
         existing.review = review
     else:
         db.add(Rating(user_id=user.id, item_id=item.id, score=score, review=review))
+
+    db.execute(
+        delete(WatchlistEntry).where(
+            WatchlistEntry.user_id == user.id, WatchlistEntry.item_id == item.id
+        )
+    )
     db.commit()
 
     return RedirectResponse(url=dest, status_code=303)
@@ -598,6 +644,7 @@ def discover_page(
         {
             "user": user, "data": data, "ratings": ratings_by_key,
             "onboard": _onboard_count(db, user),
+            "saved": _watchlist_keys(db, user),
             "cats": categories.CATEGORIES,
             "groups": categories.GROUPS,
             "previews": categories.previews(),
@@ -982,6 +1029,7 @@ def item_page(
         {
             "user": user, "item": data, "mine": mine,
             "friends_ratings": friends_ratings, "avg": avg,
+            "saved": (data["source"], data["source_id"]) in _watchlist_keys(db, user),
         },
     )
 
@@ -1314,6 +1362,172 @@ def category_page(
         {
             "user": user, "rows": rows, "slug": slug, "page": page,
             "label": spec["label"], "group": spec["group"],
-            "ratings": ratings_by_key,
+            "ratings": ratings_by_key, "saved": _watchlist_keys(db, user),
         },
     )
+
+
+@router.post("/ui/watchlist")
+def ui_watchlist_toggle(
+    request: Request,
+    media_type: str = Form(...),
+    source_id: str = Form(...),
+    back: str = Form("/"),
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if media_type not in ("movie", "tv", "game"):
+        raise HTTPException(status_code=400, detail="Bad type")
+
+    item = _cache_item(db, media_type, source_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    existing = db.scalar(
+        select(WatchlistEntry).where(
+            WatchlistEntry.user_id == user.id, WatchlistEntry.item_id == item.id
+        )
+    )
+    if existing is not None:
+        db.delete(existing)
+    else:
+        db.add(WatchlistEntry(user_id=user.id, item_id=item.id))
+    db.commit()
+
+    return RedirectResponse(url=_safe_next(back), status_code=303)
+
+
+@router.get("/watchlist", response_class=HTMLResponse)
+def watchlist_page(
+    request: Request,
+    type: str = "all",
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    q = (
+        select(
+            Item.title, Item.year, Item.image_url, Item.type,
+            Item.source, Item.source_id, WatchlistEntry.created_at,
+        )
+        .join(Item, Item.id == WatchlistEntry.item_id)
+        .where(WatchlistEntry.user_id == user.id)
+        .order_by(WatchlistEntry.created_at.desc())
+    )
+    if type in ("movie", "tv", "game"):
+        q = q.where(Item.type == type)
+
+    rows = db.execute(q).all()
+
+    counts = dict(
+        db.execute(
+            select(Item.type, func.count(WatchlistEntry.id))
+            .join(Item, Item.id == WatchlistEntry.item_id)
+            .where(WatchlistEntry.user_id == user.id)
+            .group_by(Item.type)
+        ).all()
+    )
+
+    return templates.TemplateResponse(
+        request, "watchlist.html",
+        {"user": user, "rows": rows, "type": type, "counts": counts},
+    )
+
+
+@router.get("/find", response_class=HTMLResponse)
+def find_page(
+    request: Request,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(request, "find.html", {"user": user})
+
+
+
+
+MAX_TURNS = 8
+
+
+@router.post("/api/find")
+@limiter.limit("25/hour")
+async def api_find(
+    request: Request,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in first")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bad request")
+
+    raw_turns = payload.get("turns")
+    if not isinstance(raw_turns, list) or not raw_turns:
+        raise HTTPException(status_code=400, detail="Bad request")
+
+    turns = []
+    for t in raw_turns[-MAX_TURNS:]:
+        if not isinstance(t, dict):
+            continue
+        role = "assistant" if t.get("role") == "assistant" else "user"
+        content = str(t.get("content", ""))[:600].strip()
+        if content:
+            turns.append({"role": role, "content": content})
+
+    if not turns:
+        raise HTTPException(status_code=400, detail="Bad request")
+
+    history = [
+        {"title": r.title, "year": r.year, "score": float(r.score)}
+        for r in db.execute(
+            select(Item.title, Item.year, Rating.score)
+            .join(Rating, Rating.item_id == Item.id)
+            .where(Rating.user_id == user.id)
+            .order_by(Rating.updated_at.desc())
+            .limit(recommend.MAX_HISTORY)
+        ).all()
+    ]
+
+    reply = recommend.converse(turns, history)
+
+    if reply["mode"] == "error":
+        return {"mode": "error", "note": "Something went wrong. Try again in a moment."}
+
+    if reply["mode"] == "ask":
+        return {"mode": "ask", "note": reply["note"], "questions": reply["questions"],
+                "raw": reply["raw"]}
+
+    rows = recommend.resolve(reply["suggestions"], want=8)
+    saved = _watchlist_keys(db, user)
+    rated = {
+        (r.source, r.source_id): float(r.score)
+        for r in db.execute(
+            select(Item.source, Item.source_id, Rating.score)
+            .join(Rating, Rating.item_id == Item.id)
+            .where(Rating.user_id == user.id)
+        ).all()
+    }
+
+    return {
+        "mode": "results",
+        "note": reply["note"],
+        "raw": reply["raw"],
+        "results": [
+            {
+                "source": r["source"], "source_id": r["source_id"], "type": r["type"],
+                "title": r["title"], "year": r["year"], "image_url": r["image_url"],
+                "why": r.get("why"),
+                "saved": (r["source"], r["source_id"]) in saved,
+                "score": rated.get((r["source"], r["source_id"])),
+            }
+            for r in rows
+        ],
+    }

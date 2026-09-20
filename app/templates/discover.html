@@ -39,6 +39,11 @@
           <input name="review" placeholder="say something (optional)" maxlength="2000">
           <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
         </form>
+        <form method="post" action="/ui/watchlist" style="margin-top:.4rem">
+          <input type="hidden" name="media_type" value="{{ row.type }}">
+          <input type="hidden" name="source_id" value="{{ row.source_id }}">
+          <button type="submit" class="ghost">{% if (row.source, row.source_id) in saved %}&#10003; Saved{% else %}+ Watchlist{% endif %}</button>
+        </form>
       {% endif %}
     </div>
   </div>
@@ -70,6 +75,16 @@
 
 {% block content %}
 <h1>Discover</h1>
+
+{% if user %}
+<a class="discoverbanner" href="/find">
+  <div>
+    <div class="bt">Ask Verdict</div>
+    <div class="bd">Describe what you're in the mood for and let AI find it.</div>
+  </div>
+  <div class="go">Try it &rarr;</div>
+</a>
+{% endif %}
 
 {% if onboard is not none %}
 <div class="onboard">

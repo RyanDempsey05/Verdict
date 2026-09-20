@@ -27,7 +27,16 @@
 </div>
 
 {% if user %}
-<div class="card" style="margin-top:2rem;display:block">
+<form method="post" action="/ui/watchlist" style="margin-top:1.5rem">
+  <input type="hidden" name="media_type" value="{{ item.type }}">
+  <input type="hidden" name="source_id" value="{{ item.source_id }}">
+  <input type="hidden" name="back" value="/item/{{ item.source }}/{{ item.source_id }}">
+  <button type="submit" class="{% if saved %}ghost{% endif %}">
+    {% if saved %}&#10003; On your watchlist{% else %}+ Add to watchlist{% endif %}
+  </button>
+</form>
+
+<div class="card" style="margin-top:1rem;display:block">
   <div class="meta" style="margin-bottom:.6rem">{% if mine %}Your verdict{% else %}Rate it{% endif %}</div>
   <form method="post" action="/rate" class="row">
     <input type="hidden" name="media_type" value="{{ item.type }}">
