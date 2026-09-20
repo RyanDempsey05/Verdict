@@ -311,7 +311,11 @@
     .pichead.editable:not(:has(img)) .pichint,
     .picav.editable:not(:has(img)) .pichint { opacity:1; }
     @media (hover:none) {
-      .pichead.editable .pichint, .picav.editable .pichint { opacity:1; }
+      /* only nag when the slot is empty — otherwise the label hides the photo */
+      .pichead.editable:not(:has(img)) .pichint,
+      .picav.editable:not(:has(img)) .pichint { opacity:1; }
+      .pichead.editable:has(img) .pichint,
+      .picav.editable:has(img) .pichint { opacity:0; }
     }
     @media (max-width:720px) { .pichead { height:130px; margin:-1rem -.85rem 1.25rem; } }
     a.gear {
@@ -385,8 +389,10 @@
     @media (max-width:820px) {
       input, select, textarea { font-size:16px !important; }
     }
-    .why {
-      color:#a0a0a8; font-size:.92rem; line-height:1.55; margin-top:.45rem;
+    .why, .card-body .why {
+      color:#a0a0a8; font-size:.92rem; line-height:1.55;
+      margin-top:.45rem; font-style:normal !important;
+      font-family:Inter, system-ui, sans-serif !important;
     }
   </style>
   <meta property="og:site_name" content="Verdict">

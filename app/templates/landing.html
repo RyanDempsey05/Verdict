@@ -63,9 +63,10 @@
     }
     .hero p { font-size:1.3rem; color:var(--muted); margin:0 auto 2.5rem; max-width:34rem; }
     .cta { display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap; }
-    .shots { display:grid; gap:1.25rem; grid-template-columns:repeat(4,1fr); align-items:start; margin:4rem 0; }
+    .shots { display:grid; gap:1.5rem; grid-template-columns:repeat(2,1fr); align-items:start; margin:4rem 0; }
     .shot { border:1px solid var(--line); border-radius:2px; overflow:hidden; background:var(--panel); }
     .shot img { width:100%; display:block; }
+    .shot.tall img { aspect-ratio:10/9; object-fit:cover; object-position:top center; }
     .shot span {
       display:block; padding:.8rem 1rem; font-family:Cinzel,serif;
       font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
@@ -82,8 +83,7 @@
       color:#65656d; font-size:.9rem; display:flex; gap:1.5rem; flex-wrap:wrap;
     }
     footer a { color:var(--muted); }
-    @media (max-width:1000px) { .shots { grid-template-columns:repeat(2,1fr); } }
-    @media (max-width:560px) { .shots { grid-template-columns:1fr; } }
+    @media (max-width:700px) { .shots { grid-template-columns:1fr; } .shot.tall img { aspect-ratio:auto; } }
     @media (max-width:560px) {
       .hero h1 { font-size:2rem; }
       .hero p { font-size:1.1rem; }
@@ -115,10 +115,10 @@
   </section>
 
   <section class="shots">
-    <div class="shot"><img src="/static/img/discover.png?v=6" alt="Discover page"><span>Discover</span></div>
-    <div class="shot"><img src="/static/img/profile.png?v=6" alt="Profile page"><span>Your profile</span></div>
-    <div class="shot"><img src="/static/img/friends.png?v=6" alt="Friends page"><span>Friends</span></div>
-    <div class="shot"><img src="/static/img/card.png?v=6" alt="Shareable top five card"><span>Share your top five</span></div>
+    <div class="shot"><img src="/static/img/discover.png?v=7" alt="Discover page"><span>Discover</span></div>
+    <div class="shot"><img src="/static/img/profile.png?v=7" alt="Profile page"><span>Your ratings</span></div>
+    <div class="shot"><img src="/static/img/ask.png?v=7" alt="Ask Verdict"><span>Ask Verdict</span></div>
+    <div class="shot tall"><img src="/static/img/card.png?v=7" alt="Shareable top five card"><span>Share your top five</span></div>
   </section>
 
   <section class="feats">
@@ -129,6 +129,10 @@
     <div class="feat">
       <h3>Your top five</h3>
       <p>Rank your favorite films, shows, and games. They sit at the top of your profile for everyone to argue with.</p>
+    </div>
+    <div class="feat">
+      <h3>Ask Verdict</h3>
+      <p>Describe what you're in the mood for and let AI find it. It reads what you've rated, so it gets better the more you use it.</p>
     </div>
     <div class="feat">
       <h3>A feed worth reading</h3>
