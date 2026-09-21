@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -508,6 +509,11 @@ def ui_delete_rating(
         select(Rating).where(Rating.id == rating_id, Rating.user_id == user.id)
     )
     if rating is not None:
+        db.execute(
+            delete(ListEntry).where(
+                ListEntry.user_id == user.id, ListEntry.item_id == rating.item_id
+            )
+        )
         db.delete(rating)
         db.commit()
     return RedirectResponse(url="/me", status_code=303)
@@ -571,6 +577,7 @@ def profile_page(
         select(
             Rating.score, Rating.review,
             Item.title, Item.year, Item.image_url, Item.type,
+            Item.source, Item.source_id,
         )
         .join(Item, Item.id == Rating.item_id)
         .where(Rating.user_id == profile.id)
@@ -1454,22 +1461,22 @@ def find_page(
 MAX_TURNS = 8
 
 
+class FindIn(BaseModel):
+    turns: list = []
+
+
 @router.post("/api/find")
 @limiter.limit("25/hour")
-async def api_find(
+def api_find(
     request: Request,
+    body: FindIn,
     user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in first")
 
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Bad request")
-
-    raw_turns = payload.get("turns")
+    raw_turns = body.turns
     if not isinstance(raw_turns, list) or not raw_turns:
         raise HTTPException(status_code=400, detail="Bad request")
 
@@ -1531,3 +1538,106 @@ async def api_find(
             for r in rows
         ],
     }
+
+
+@router.post("/ui/unrate")
+def ui_unrate(
+    request: Request,
+    media_type: str = Form(...),
+    source_id: str = Form(...),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    dest = _safe_next(request.headers.get("referer", "").split("verdictapp.app", 1)[-1] or None)
+    dest = dest.split("#", 1)[0]
+    anchor = re.sub(r"[^A-Za-z0-9_-]", "", f"{media_type}-{source_id}")
+    if anchor:
+        dest = f"{dest}#i-{anchor}"
+
+    if media_type not in ("movie", "tv", "game"):
+        return RedirectResponse(url=dest, status_code=303)
+
+    source = "igdb" if media_type == "game" else "tmdb"
+    item = db.scalar(
+        select(Item).where(Item.source == source, Item.source_id == source_id)
+    )
+    if item is not None:
+        # only ever touches the signed-in user's own rows
+        db.execute(
+            delete(Rating).where(Rating.user_id == user.id, Rating.item_id == item.id)
+        )
+        db.execute(
+            delete(ListEntry).where(
+                ListEntry.user_id == user.id, ListEntry.item_id == item.id
+            )
+        )
+        db.commit()
+
+    return RedirectResponse(url=dest, status_code=303)
+
+
+
+class RateIn(BaseModel):
+    media_type: str
+    source_id: str
+    score: float
+    review: str | None = None
+
+
+@router.post("/api/rate")
+@limiter.limit("60/minute")
+def api_rate(
+    request: Request,
+    body: RateIn,
+    user: User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in first")
+    if body.media_type not in ("movie", "tv", "game"):
+        raise HTTPException(status_code=400, detail="Bad type")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", body.source_id):
+        raise HTTPException(status_code=400, detail="Bad id")
+
+    score = body.score
+    if score != 0 and (score < 0.5 or score > 5 or (score * 2) % 1 != 0):
+        raise HTTPException(status_code=400, detail="Bad score")
+
+    source = "igdb" if body.media_type == "game" else "tmdb"
+
+    # dragging to zero removes the rating, and takes it off the Top Five too
+    if score == 0:
+        item = db.scalar(
+            select(Item).where(Item.source == source, Item.source_id == body.source_id)
+        )
+        if item is not None:
+            db.execute(delete(Rating).where(
+                Rating.user_id == user.id, Rating.item_id == item.id))
+            db.execute(delete(ListEntry).where(
+                ListEntry.user_id == user.id, ListEntry.item_id == item.id))
+            db.commit()
+        return {"ok": True, "score": None}
+
+    item = _cache_item(db, body.media_type, body.source_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # only touch the review if the client actually sent one, so dragging
+    # the slider on a card never wipes a review written elsewhere
+    sent = getattr(body, "model_fields_set", None) or getattr(body, "__fields_set__", set())
+    review = (body.review or "").strip()[:2000] or None if "review" in sent else None
+
+    existing = db.scalar(
+        select(Rating).where(Rating.user_id == user.id, Rating.item_id == item.id)
+    )
+    if existing is not None:
+        existing.score = score
+        if "review" in sent:
+            existing.review = review
+    else:
+        db.add(Rating(user_id=user.id, item_id=item.id, score=score, review=review))
+
+    db.execute(delete(WatchlistEntry).where(
+        WatchlistEntry.user_id == user.id, WatchlistEntry.item_id == item.id))
+    db.commit()
+    return {"ok": True, "score": score}

@@ -20,7 +20,7 @@
       {% set seen = ratings.get((row.source, row.source_id)) %}
       {% set mine = (seen or []) | selectattr("username", "equalto", user.username) | first if user else none %}
       {% if mine %}
-        <div class="meta"><span class="score">{{ mine.score }}</span><span class="year">/5 &mdash; your verdict</span></div>
+        <div class="meta"><span class="score">{{ mine.score }}</span><span class="year">/5 &mdash; your verdict</span><form method="post" action="/ui/unrate" class="unrate" onsubmit="return confirm('Remove your rating?');"><input type="hidden" name="media_type" value="{{ row.type }}"><input type="hidden" name="source_id" value="{{ row.source_id }}"><button type="submit" class="linkbtn">remove</button></form></div>
       {% endif %}
       {% if seen %}
         <div class="meta">

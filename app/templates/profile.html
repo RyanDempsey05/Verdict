@@ -99,10 +99,11 @@
   <div class="card">
     {% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}
     <div class="card-body">
-      <div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div>
+      <a class="cardlink" href="/item/{{ row.source }}/{{ row.source_id }}"><div class="title">{{ row.title }} <span class="year">{% if row.year %}{{ row.year }}{% endif %}</span></div></a>
       <div class="meta">
         <span class="score">{{ row.score }}</span><span class="year">/5</span>
         {% if active == 'all' %}<span class="tag" style="margin-left:.5rem">{{ row.type }}</span>{% endif %}
+        {% if is_self %}<form method="post" action="/ui/unrate" class="unrate" onsubmit="return confirm('Remove your rating? If this is in your Top Five it comes off there too.');"><input type="hidden" name="media_type" value="{{ row.type }}"><input type="hidden" name="source_id" value="{{ row.source_id }}"><button type="submit" class="linkbtn">remove</button></form>{% endif %}
       </div>
       {% if row.review %}<div class="review">{{ row.review }}</div>{% endif %}
     </div>

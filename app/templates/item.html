@@ -55,6 +55,14 @@
     <input name="review" placeholder="say something (optional)" maxlength="2000" value="{{ mine.review or '' if mine else '' }}">
     <button type="submit">{% if mine %}Update{% else %}Rate{% endif %}</button>
   </form>
+  {% if mine %}
+  <form method="post" action="/ui/unrate" style="margin-top:.6rem"
+        onsubmit="return confirm('Remove your rating? If this is in your Top Five it comes off there too.');">
+    <input type="hidden" name="media_type" value="{{ item.type }}">
+    <input type="hidden" name="source_id" value="{{ item.source_id }}">
+    <button type="submit" class="ghost">Remove my rating</button>
+  </form>
+  {% endif %}
 </div>
 {% else %}
 <div class="empty" style="margin-top:2rem">

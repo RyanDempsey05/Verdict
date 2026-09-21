@@ -394,6 +394,20 @@
       margin-top:.45rem; font-style:normal !important;
       font-family:Inter, system-ui, sans-serif !important;
     }
+    form.unrate { display:inline; margin-left:.5rem; }
+    button.linkbtn {
+      background:none; border:none; padding:0; min-height:0; cursor:pointer;
+      color:var(--muted); font:inherit; font-size:.85rem; text-decoration:underline;
+    }
+    button.linkbtn:hover { color:var(--verd); filter:none; }
+    .rate { position:relative; }
+    .savestate {
+      position:absolute; right:0; top:-1.15rem; font-size:.74rem;
+      color:var(--muted); opacity:0; transition:opacity .2s; white-space:nowrap;
+      pointer-events:none;
+    }
+    .savestate.show { opacity:1; }
+    .savestate.bad { color:var(--verd); }
   </style>
   <meta property="og:site_name" content="Verdict">
   <meta property="og:type" content="website">
@@ -441,6 +455,7 @@
   };
 
   function band(v) {
+    if (v <= 0) return 3;
     if (v <= 1) return 1;
     if (v <= 2) return 2;
     if (v <= 3.5) return 3;
@@ -478,6 +493,7 @@
   function valueFrom(track, x) {
     var r = track.getBoundingClientRect();
     var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+    if (pct < 0.03) return 0;
     return Math.max(0.5, Math.min(5, Math.ceil(pct * 10) / 2));
   }
 
@@ -511,6 +527,114 @@
   }
   window.initRates = init;
   init(document);
+})();
+</script>
+<script>
+(function () {
+  if (!window.initRates) return;
+  var baseInit = window.initRates;
+
+  function verdictLine(card) {
+    if (!card) return null;
+    var metas = card.querySelectorAll('.meta');
+    for (var i = 0; i < metas.length; i++) {
+      if (metas[i].textContent.indexOf('your verdict') !== -1) return metas[i];
+    }
+    return null;
+  }
+
+  function bind(root) {
+    (root || document).querySelectorAll('[data-rate]').forEach(function (rate) {
+      if (rate.dataset.autosave) return;
+      var form = rate.closest('form');
+      if (!form) return;
+      var track = rate.querySelector('[data-track]');
+      var scoreIn = rate.querySelector('input[name=score]');
+      var reviewIn = form.querySelector('input[name=review]');
+      var typeIn = form.querySelector('input[name=media_type]');
+      var idIn = form.querySelector('input[name=source_id]');
+      if (!track || !scoreIn || !typeIn || !idIn) return;
+      rate.dataset.autosave = '1';
+
+      var btn = form.querySelector('button[type=submit]');
+      if (btn) btn.style.display = 'none';
+
+      var state = document.createElement('span');
+      state.className = 'savestate';
+      rate.appendChild(state);
+
+      var saved = parseFloat(scoreIn.value) || 0;
+      var dirty = false;
+      var timer = null;
+
+      function flash(text, bad) {
+        state.textContent = text;
+        state.classList.toggle('bad', !!bad);
+        state.classList.add('show');
+        clearTimeout(timer);
+        timer = setTimeout(function () { state.classList.remove('show'); }, 1600);
+      }
+
+      function revert() {
+        scoreIn.value = saved ? saved.toFixed(1) : '0';
+        track.dispatchEvent(new Event('pointerleave'));
+      }
+
+      async function save(v, withReview) {
+        var payload = { media_type: typeIn.value, source_id: idIn.value, score: v };
+        if (withReview && reviewIn) payload.review = reviewIn.value;
+        flash('Saving…');
+        try {
+          var res = await fetch('/api/rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.status === 401) { window.location.href = '/login'; return; }
+          if (!res.ok) throw new Error(String(res.status));
+          saved = v;
+          if (withReview) dirty = false;
+          flash(!v ? 'Removed' : (withReview ? 'Saved' : 'Rated'));
+          var line = verdictLine(form.closest('.card'));
+          if (line) {
+            var sc = line.querySelector('.score');
+            if (v && sc) { sc.textContent = v.toFixed(1); line.style.display = ''; }
+            if (!v) line.style.display = 'none';
+          }
+        } catch (e) {
+          revert();
+          flash("Couldn't save", true);
+        }
+      }
+
+      function saveReview() {
+        var v = parseFloat(scoreIn.value) || 0;
+        if (!v) { flash('Rate it first', true); return; }
+        save(v, true);
+      }
+
+      track.addEventListener('pointerup', function () {
+        var v = parseFloat(scoreIn.value) || 0;
+        if (v !== saved) save(v, dirty);
+      });
+
+      if (reviewIn) {
+        reviewIn.placeholder = 'add a review, press Enter to save';
+        reviewIn.addEventListener('input', function () { dirty = true; });
+        reviewIn.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); saveReview(); }
+        });
+        reviewIn.addEventListener('change', function () {
+          if (dirty && saved > 0) save(saved, true);
+        });
+      }
+
+      form.addEventListener('submit', function (e) { e.preventDefault(); saveReview(); });
+    });
+  }
+
+  window.initRates = function (root) { baseInit(root); bind(root); };
+  bind(document);
 })();
 </script>
 </body>
