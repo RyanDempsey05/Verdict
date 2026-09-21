@@ -29,6 +29,7 @@ class User(Base):
     backdrop: Mapped[str | None] = mapped_column(String(64), nullable=True)
     profile_public: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     invite_code: Mapped[str | None] = mapped_column(String(16), unique=True, nullable=True)
+    session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     username_changed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

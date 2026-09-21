@@ -4,11 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db import get_db
+from app.db import SessionLocal, get_db
 from app.limiter import limiter
 from app.models import User
 from app.security import (
     SESSION_COOKIE,
+    SESSION_MAX_AGE,
     hash_password,
     read_session,
     sign_session,
@@ -22,10 +23,15 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User | 
     cookie = request.cookies.get(SESSION_COOKIE)
     if not cookie:
         return None
-    user_id = read_session(cookie)
-    if user_id is None:
+    parsed = read_session(cookie)
+    if parsed is None:
         return None
-    return db.get(User, user_id)
+    user_id, version = parsed
+    user = db.get(User, user_id)
+    # a cookie from before the last password change or sign-out is dead
+    if user is None or (user.session_version or 0) != version:
+        return None
+    return user
 
 
 def require_user(user: User | None = Depends(get_current_user)) -> User:
@@ -35,13 +41,16 @@ def require_user(user: User | None = Depends(get_current_user)) -> User:
 
 
 def _set_session(response: RedirectResponse, user_id: int) -> None:
+    # read the committed version, so callers must commit any bump first
+    with SessionLocal() as db:
+        version = db.scalar(select(User.session_version).where(User.id == user_id)) or 0
     response.set_cookie(
         SESSION_COOKIE,
-        sign_session(user_id),
+        sign_session(user_id, version),
         httponly=True,
         samesite="lax",
         secure=True,
-        max_age=60 * 60 * 24 * 14,
+        max_age=SESSION_MAX_AGE,
     )
 
 

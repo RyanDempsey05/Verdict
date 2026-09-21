@@ -814,6 +814,7 @@ def ui_change_password(
         return templates.TemplateResponse(request, "settings.html", ctx, status_code=400)
 
     user.password_hash = hash_password(new_password)
+    user.session_version = (user.session_version or 0) + 1
     db.commit()
 
     response = RedirectResponse(url="/settings", status_code=303)
@@ -1327,6 +1328,7 @@ def ui_reset(
         raise HTTPException(status_code=404, detail="Not found")
 
     target.password_hash = hash_password(password)
+    target.session_version = (target.session_version or 0) + 1
     row.used_at = datetime.now(timezone.utc)
     db.commit()
 
@@ -1641,3 +1643,19 @@ def api_rate(
         WatchlistEntry.user_id == user.id, WatchlistEntry.item_id == item.id))
     db.commit()
     return {"ok": True, "score": score}
+
+
+
+@router.post("/ui/settings/logout-others")
+@limiter.limit("10/hour")
+def ui_logout_others(
+    request: Request,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    # every existing cookie now carries a stale version; re-issue only this one
+    user.session_version = (user.session_version or 0) + 1
+    db.commit()
+    response = RedirectResponse(url="/settings?done=sessions", status_code=303)
+    _set_session(response, user.id)
+    return response

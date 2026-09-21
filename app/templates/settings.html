@@ -42,6 +42,18 @@
   <button type="submit">Save</button>
 </form>
 
+<h2 style="font-size:1.2rem;margin-top:2.5rem">Sessions</h2>
+{% if request.query_params.get('done') == 'sessions' %}
+  <p class="meta" style="color:var(--bone)">Every other device has been signed out.</p>
+{% endif %}
+<p class="meta" style="margin-bottom:.8rem;max-width:460px">
+  Signed in somewhere you shouldn't be? This signs out every device except this one.
+  Changing your password does the same thing automatically.
+</p>
+<form method="post" action="/ui/settings/logout-others">
+  <button type="submit" class="ghost">Sign out other devices</button>
+</form>
+
 <h2 style="font-size:1.2rem;margin-top:2.5rem;color:#8a5a4a">Danger</h2>
 <div class="meta" style="margin-bottom:.8rem">Deleting your account removes your ratings, friendships, and images. This cannot be undone.</div>
 <form method="post" action="/ui/settings/delete" class="stack" style="max-width:460px">
