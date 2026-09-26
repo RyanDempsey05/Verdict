@@ -18,7 +18,8 @@ from app.db import get_db
 from app.friends import friend_ids
 from app.limiter import limiter
 from app.models import (
-    Friendship, Item, ListEntry, PasswordReset, Rating, User, WatchlistEntry,
+    AiUsage, Friendship, Item, ListEntry, PasswordReset, Rating, User,
+    WatchlistEntry,
 )
 from app.limiter import limiter
 from app.security import SESSION_COOKIE, hash_password, verify_password
@@ -1463,6 +1464,10 @@ def find_page(
 MAX_TURNS = 8
 
 
+AI_PER_HOUR = 10
+AI_PER_DAY = 60
+
+
 class FindIn(BaseModel):
     turns: list = []
 
@@ -1477,6 +1482,27 @@ def api_find(
 ):
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in first")
+
+    # per-account quota, on top of the per-IP limiter. lives in postgres so it
+    # survives restarts and follows the account rather than the address
+    now = datetime.now(timezone.utc)
+    used_hour = db.scalar(
+        select(func.count(AiUsage.id)).where(
+            AiUsage.user_id == user.id,
+            AiUsage.created_at > now - timedelta(hours=1),
+        )
+    ) or 0
+    if used_hour >= AI_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Hourly limit reached")
+
+    used_day = db.scalar(
+        select(func.count(AiUsage.id)).where(
+            AiUsage.user_id == user.id,
+            AiUsage.created_at > now - timedelta(days=1),
+        )
+    ) or 0
+    if used_day >= AI_PER_DAY:
+        raise HTTPException(status_code=429, detail="Daily limit reached")
 
     raw_turns = body.turns
     if not isinstance(raw_turns, list) or not raw_turns:
@@ -1506,6 +1532,11 @@ def api_find(
     ]
 
     reply = recommend.converse(turns, history)
+
+    # only bill the user for calls that actually reached the model
+    if reply["mode"] != "error":
+        db.add(AiUsage(user_id=user.id))
+        db.commit()
 
     if reply["mode"] == "error":
         return {"mode": "error", "note": "Something went wrong. Try again in a moment."}
