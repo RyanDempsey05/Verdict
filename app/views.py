@@ -1464,7 +1464,7 @@ def find_page(
 MAX_TURNS = 8
 
 
-AI_PER_HOUR = 10
+AI_PER_HOUR = 5
 AI_PER_DAY = 60
 
 
@@ -1473,7 +1473,7 @@ class FindIn(BaseModel):
 
 
 @router.post("/api/find")
-@limiter.limit("25/hour")
+@limiter.limit("5/hour")
 def api_find(
     request: Request,
     body: FindIn,
